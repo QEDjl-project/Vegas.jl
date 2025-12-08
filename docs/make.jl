@@ -1,70 +1,57 @@
-using Vegas
+using Pkg
+
+# targeting the correct source code
+# this assumes the make.jl script is located in Vegas.jl/docs
+project_path = Base.Filesystem.joinpath(Base.Filesystem.dirname(Base.source_path()), "..")
+Pkg.develop(; path = project_path)
+
 using Documenter
 
-DocMeta.setdocmeta!(Vegas, :DocTestSetup, :(using Vegas); recursive = true)
+using Vegas
 
-# Add titles of sections and overrides page titles
-const titles = Dict(
-    # "10-tutorials" => "Tutorials", # example folder title
-    "91-developer.md" => "Developer docs",
-)
+# some paths for links
+readme_path = joinpath(project_path, "README.md")
+index_path = joinpath(project_path, "docs/src/index.md")
+license_path = "https://github.com/QEDjl-project/Vegas.jl/blob/main/LICENSE"
 
-function recursively_list_pages(folder; path_prefix = "")
-    pages_list = Any[]
-    for file in readdir(folder)
-        if file == "index.md"
-            # We add index.md separately to make sure it is the first in the list
-            continue
-        end
-        # this is the relative path according to our prefix, not @__DIR__, i.e., relative to `src`
-        relpath = joinpath(path_prefix, file)
-        # full path of the file
-        fullpath = joinpath(folder, relpath)
+# Copy README.md from the project base folder and use it as the start page
+open(readme_path, "r") do readme_in
+    readme_string = read(readme_in, String)
 
-        if isdir(fullpath)
-            # If this is a folder, enter the recursion case
-            subsection = recursively_list_pages(fullpath; path_prefix = relpath)
+    # replace relative links in the README.md
+    readme_string = replace(readme_string, "[MIT](LICENSE)" => "[MIT]($(license_path))")
 
-            # Ignore empty folders
-            if length(subsection) > 0
-                title = if haskey(titles, relpath)
-                    titles[relpath]
-                else
-                    @error "Bad usage: '$relpath' does not have a title set. Fix in 'docs/make.jl'"
-                    relpath
-                end
-                push!(pages_list, title => subsection)
-            end
-
-            continue
-        end
-
-        if splitext(file)[2] != ".md" # non .md files are ignored
-            continue
-        elseif haskey(titles, relpath) # case 'title => path'
-            push!(pages_list, titles[relpath] => relpath)
-        else # case 'title'
-            push!(pages_list, relpath)
-        end
+    open(index_path, "w") do readme_out
+        write(readme_out, readme_string)
     end
-
-    return pages_list
 end
 
-function list_pages()
-    root_dir = joinpath(@__DIR__, "src")
-    pages_list = recursively_list_pages(root_dir)
+pages = [
+    "Home" => "index.md",
+    "refs.md",
+]
 
-    return ["index.md"; pages_list]
+try
+    # generate docs with Documenter.jl
+    makedocs(;
+        modules = [Vegas],
+        checkdocs = :exports,
+        authors = "Uwe Hernandez Acosta, Anton Reinhard",
+        repo = Documenter.Remotes.GitHub("QEDjl-project", "Vegas.jl"),
+        sitename = "Vegas.jl",
+        format = Documenter.HTML(;
+            prettyurls = get(ENV, "CI", "false") == "true",
+            canonical = "https://qedjl-project.gitlab.io/Vegas.jl",
+            assets = String[],
+            mathengine = Documenter.MathJax2(),
+            collapselevel = 1,
+        ),
+        pages = pages,
+    )
+finally
+    # doing some garbage collection
+    @info "GarbageCollection: remove generated landing page"
+    rm(index_path)
 end
 
-makedocs(;
-    modules = [Vegas],
-    authors = "Uwe Hernandez Acosta <u.hernandez@hzdr.de>, Anton Reinhard",
-    repo = "https://github.com/QEDjl-project/Vegas.jl/blob/{commit}{path}#{line}",
-    sitename = "Vegas.jl",
-    format = Documenter.HTML(; canonical = "https://QEDjl-project.github.io/Vegas.jl"),
-    pages = list_pages(),
-)
-
-deploydocs(; repo = "github.com/QEDjl-project/Vegas.jl")
+deploydocs(; repo = "github.com/QEDjl-project/Vegas.jl.git", push_preview = false)

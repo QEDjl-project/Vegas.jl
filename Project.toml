@@ -1,9 +1,6 @@
 name = "Vegas"
 uuid = "fa56aa31-9f07-5578-a677-b1eb73889b05"
-authors = [
-    "Uwe Hernandez Acosta <u.hernandez@hzdr.de>",
-    " Anton Reinhard",
-]
+authors = ["Uwe Hernandez Acosta <u.hernandez@hzdr.de>", "Anton Reinhard"]
 version = "0.1.0"
 
 [compat]
