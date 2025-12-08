@@ -1,0 +1,3 @@
+var documenterSearchIndex = {"docs":
+[{"location":"95-reference/#reference","page":"Reference","title":"Reference","text":"","category":"section"},{"location":"95-reference/#Contents","page":"Reference","title":"Contents","text":"Pages = [\"95-reference.md\"]","category":"section"},{"location":"95-reference/#Index","page":"Reference","title":"Index","text":"Pages = [\"95-reference.md\"]","category":"section"},{"location":"95-reference/#Vegas.hello_world-Tuple{}","page":"Reference","title":"Vegas.hello_world","text":"hi = hello_world()\n\nA simple function to return \"Hello, World!\"\n\n\n\n\n\n","category":"method"},{"location":"#Vegas","page":"Vegas","title":"Vegas","text":"Documentation for Vegas.","category":"section"}]
+}
