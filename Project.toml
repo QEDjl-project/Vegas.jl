@@ -1,29 +1,48 @@
 name = "Vegas"
 uuid = "fa56aa31-9f07-5578-a677-b1eb73889b05"
-authors = ["Uwe Hernandez Acosta <u.hernandez@hzdr.de>", "Anton Reinhard"]
 version = "0.1.0"
+authors = ["Uwe Hernandez Acosta <u.hernandez@hzdr.de>", "Anton Reinhard"]
 
 [deps]
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+GPUArrays = "0c68f7d7-f131-5f86-a1c3-88cf8149b2d7"
+KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
 QEDbase = "10e22c08-3ccb-4172-bfcf-7d7aa3d04d93"
 QEDcore = "35dc0263-cb5f-4c33-a114-1d7f54ab753e"
 QEDevents = "fc3ce04a-5be5-4f3a-acff-eceaab723759"
 QEDprocesses = "46de9c38-1bb3-4547-a1ec-da24d767fdad"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+
+[weakdeps]
+AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+Metal = "dde4c033-4e86-420c-a63e-0dd931031962"
+oneAPI = "8f75cd03-7ff8-4ecb-9b8f-daf728133b1b"
+
+[extensions]
+AMDGPUTExt = "AMDGPU"
+CUDAExt = "CUDA"
+MetalExt = "Metal"
+oneAPIExt = "oneAPI"
 
 [compat]
 Distributions = "0.25.122"
+GPUArrays = "11.3.1"
+KernelAbstractions = "0.9.39"
 QEDbase = "0.5.2"
 QEDcore = "0.4.1"
 QEDevents = "0.3.1"
 QEDprocesses = "0.5.1"
 Random = "1.10"
+StaticArrays = "1.9.15"
 julia = "1.10"
 
 [extras]
+Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "SafeTestsets", "Random"]
+test = ["Test", "SafeTestsets", "Random", "Pkg"]

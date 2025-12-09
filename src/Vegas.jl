@@ -4,6 +4,9 @@ module Vegas
 export AbstractComputationSetup, AbstractProcessSetup
 export compute, scattering_process, physical_model
 
+# buffer
+export VegasBatchBuffer, VegasOutBuffer
+
 # Vegas Sampler
 export VegasGrid, VegasProposal
 export nbins, extent, nodes, spacing
@@ -14,6 +17,7 @@ using QEDbase
 using QEDcore
 using QEDevents
 using Random
+using KernelAbstractions
 
 include("setups/interface.jl")
 include("setups/generics.jl")
@@ -25,5 +29,9 @@ include("map.jl")
 include("refine.jl")
 include("training.jl")
 include("sampler.jl")
+
+include("buffer.jl")
+include("testutils/TestUtils.jl")
+
 
 end
