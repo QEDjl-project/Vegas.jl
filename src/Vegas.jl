@@ -6,9 +6,11 @@ export compute, scattering_process, physical_model
 
 # target distributions
 export AbstractTargetDistribution
+export degrees_of_freedom, compute!
 
 # buffer
 export VegasBatchBuffer, VegasOutBuffer
+export allocate_vegas_batch
 
 # Vegas Sampler
 export VegasGrid, VegasProposal
