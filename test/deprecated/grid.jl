@@ -1,4 +1,4 @@
-using Vegas
+using Vegas.VegasCPU
 using Random
 
 include("testutils.jl")
