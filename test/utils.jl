@@ -38,3 +38,10 @@ function test_deprecated()
         end
     end
 end
+
+
+function _check_all_equal(vec, kwargs...)
+    el1 = first(vec)
+    @test isapprox(fill(el1, length(vec)), vec, kwargs...)
+    return nothing
+end
