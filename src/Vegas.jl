@@ -34,5 +34,7 @@ include("grid.jl")
 include("testutils/TestUtils.jl")
 include("cpu/VegasCPU.jl")
 
+include("project1.jl")
+include("project2.jl")
 
 end
