@@ -23,6 +23,7 @@ using QEDcore
 using QEDevents
 using Random
 using KernelAbstractions
+using Adapt
 
 include("setups/interface.jl")
 include("setups/generics.jl")

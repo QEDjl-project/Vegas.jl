@@ -1,12 +1,13 @@
-# infer nodes from spacing
+function _assert_correct_boundaries(::Tuple{}, ::Tuple{}) end
 
-function _nodes_from_spacing(stepsizes::VecOrMat, init::VecOrMat)
-    return vcat(init', reshape(init, 1, :) .+ accumulate(+, stepsizes, dims = 1))
+function _assert_correct_boundaries(
+        low::Tuple{Vararg{T, N}},
+        up::Tuple{Vararg{T, N}},
+    ) where {T <: Real, N}
+    first(low) <= first(up) || throw(
+        ArgumentError(
+            "lower boundary need to be smaller or equal to the respective upper boundary",
+        ),
+    )
+    return _assert_correct_boundaries(low[2:end], up[2:end])
 end
-
-function _nodes_from_spacing(stepsizes::VecOrMat, init::Real)
-    return _nodes_from_spacing(stepsizes, fill(init, size(stepsizes, 2)))
-end
-
-# tot_cs, cum_std_dev, chi_sq
-@inline _vp_init_values(::Type{T}) where {T <: Real} = ntuple(i -> zero(T), 3)
