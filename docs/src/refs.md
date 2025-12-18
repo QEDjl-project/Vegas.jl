@@ -3,15 +3,27 @@
 ## Contents
 
 ```@contents
-Pages = ["95-reference.md"]
+Pages = ["refs.md"]
 ```
 
 ## Index
 
 ```@index
-Pages = ["95-reference.md"]
+Pages = ["refs.md"]
 ```
 
 ```@autodocs
-Modules = [Vegas, Vegas.TestUtils]
+Modules = [Vegas]
+```
+
+## TestUtils
+
+```@autodocs
+Modules = [Vegas.TestUtils]
+```
+
+## CPU version (to be deprecated)
+
+```@autodocs
+Modules = [Vegas.VegasCPU]
 ```
