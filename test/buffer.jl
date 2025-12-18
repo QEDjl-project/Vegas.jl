@@ -1,28 +1,24 @@
-function testsuite_buffer(backend, vec_type, sample_type, weight_type, batch_size)
+function testsuite_buffer(backend, el_type, dim, batch_size)
 
     @testset "batch buffer" begin
-        buffer = Vegas._allocate_vegas_batch(backend, sample_type, weight_type, batch_size)
+        buffer = Vegas._allocate_vegas_batch(backend, el_type, dim, batch_size)
 
         @testset "sizes" begin
-            @test size(buffer.vegas_samples) == (batch_size,)
-            @test size(buffer.target_samples) == (batch_size,)
+            @test size(buffer.values) == (batch_size, dim)
+            @test size(buffer.target_weights) == (batch_size,)
             @test size(buffer.jacobians) == (batch_size,)
-            @test size(buffer.target_values) == (batch_size,)
-            @test size(buffer.bin_average) == (batch_size,)
         end
 
         @testset "types" begin
-            @test eltype(buffer.vegas_samples) == sample_type
-            @test eltype(buffer.target_samples) == sample_type
-            @test eltype(buffer.jacobians) == weight_type
-            @test eltype(buffer.target_values) == weight_type
-            @test eltype(buffer.bin_average) == weight_type
+            @test eltype(buffer.values) == el_type
+            @test eltype(buffer.target_weights) == el_type
+            @test eltype(buffer.jacobians) == el_type
         end
 
     end
 
     @testset "output buffer" begin
-        buffer = Vegas._allocate_vegas_output(backend, weight_type)
+        buffer = Vegas._allocate_vegas_output(backend, el_type)
 
         @testset "sizes" begin
             @test size(buffer.weighted_mean) == (1,)
@@ -31,9 +27,9 @@ function testsuite_buffer(backend, vec_type, sample_type, weight_type, batch_siz
         end
 
         @testset "types" begin
-            @test eltype(buffer.weighted_mean) == weight_type
-            @test eltype(buffer.variance) == weight_type
-            @test eltype(buffer.chi_square) == weight_type
+            @test eltype(buffer.weighted_mean) == el_type
+            @test eltype(buffer.variance) == el_type
+            @test eltype(buffer.chi_square) == el_type
         end
 
 

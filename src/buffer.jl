@@ -1,25 +1,21 @@
-struct VegasBatchBuffer{Ts, Tw, V, C, J, F, B}
-    vegas_samples::V
-    target_samples::C
+struct VegasBatchBuffer{T, D, V, W, J}
+    values::V
+    target_weights::W
     jacobians::J
-    target_values::F
-    bin_average::B
 
-    function VegasBatchBuffer(vsamples::V, tsamples::C, jacs::J, values::F, bin_avg::B) where {
-            Ts, Tw, V <: AbstractVector{Ts}, C <: AbstractVector{Ts}, J <: AbstractVector{Tw}, F <: AbstractVector{Tw}, B <: AbstractVector{Tw},
+    function VegasBatchBuffer(values::V, target_weights::W, jacs::J) where {
+            T, V <: AbstractVecOrMat{T}, W <: AbstractVector{T}, J <: AbstractVector{T},
         }
-
-        return new{Ts, Tw, V, C, J, F, B}(vsamples, tsamples, jacs, values, bin_avg)
+        D = ndims(values) == 1 ? 1 : size(values, 2)
+        return new{T, D, V, W, J}(values, target_weights, jacs)
     end
 end
 
-function _allocate_vegas_batch(backend, sample_type, weight_type, batch_size)
+function _allocate_vegas_batch(backend, el_type, dof, batch_size)
     return VegasBatchBuffer(
-        allocate(backend, sample_type, (batch_size,)), # vsamples
-        allocate(backend, sample_type, (batch_size,)), # tsamples
-        allocate(backend, weight_type, (batch_size,)), # jacobians
-        allocate(backend, weight_type, (batch_size,)),  # fvalues
-        allocate(backend, weight_type, (batch_size,))  # bin_avg
+        allocate(backend, el_type, (batch_size, dof)), # values
+        allocate(backend, el_type, (batch_size,)), # weights
+        allocate(backend, el_type, (batch_size,)), # jacobians
     )
 end
 

@@ -4,6 +4,9 @@ module Vegas
 export AbstractComputationSetup, AbstractProcessSetup
 export compute, scattering_process, physical_model
 
+# target distributions
+export AbstractTargetDistribution
+
 # buffer
 export VegasBatchBuffer, VegasOutBuffer
 
@@ -22,6 +25,7 @@ using KernelAbstractions
 include("setups/interface.jl")
 include("setups/generics.jl")
 
+
 include("utils.jl")
 include("types.jl")
 include("access.jl")
@@ -31,6 +35,7 @@ include("training.jl")
 include("sampler.jl")
 
 include("buffer.jl")
+include("target.jl")
 include("testutils/TestUtils.jl")
 
 
