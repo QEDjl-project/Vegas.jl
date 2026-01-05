@@ -46,19 +46,19 @@ end
 
 # build equidistant grid nodes
 
-@kernel function _fill_uniformly_kernel(grid_nodes::AbstractMatrix, nbins::Int, @Const(lower::NTuple{N, T}), @Const(upper::NTuple{N, T})) where {N, T}
+@kernel function _fill_uniformly_kernel(grid_nodes::AbstractMatrix, ::Val{NBINS}, @Const(lower::NTuple{N, T}), @Const(upper::NTuple{N, T})) where {N, T, NBINS}
 
     bin_idx, dim_idx = @index(Global, NTuple)
 
     # TODO: check for float precision
-    grid_nodes[bin_idx, dim_idx] = lower[dim_idx] + (bin_idx - one(bin_idx)) * (upper[dim_idx] - lower[dim_idx]) / (nbins - one(bin_idx))
+    grid_nodes[bin_idx, dim_idx] = lower[dim_idx] + (bin_idx - one(bin_idx)) * (upper[dim_idx] - lower[dim_idx]) / (NBINS - one(bin_idx))
 
 end
 
 function _fill_uniformly!(grid::VegasGrid, lower::NTuple{N, T}, upper::NTuple{N, T}) where {N, T <: Real}
 
     # TODO: use different blocksizes for CPU or GPU!
-    _fill_uniformly_kernel(get_backend(grid), 32)(grid.nodes, nbins(grid), lower, upper, ndrange = size(grid.nodes))
+    _fill_uniformly_kernel(get_backend(grid), 32)(grid.nodes, Val(nbins(grid)), lower, upper, ndrange = size(grid.nodes))
 
     return nothing
 end
