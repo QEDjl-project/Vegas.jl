@@ -46,10 +46,7 @@ end
 
 # build equidistant grid nodes
 
-@kernel function _fill_uniformly_kernel(grid_nodes, @Const(lower), @Const(upper))
-
-    # TODO: check if this is statically determined
-    nbins = size(grid_nodes, 1)
+@kernel function _fill_uniformly_kernel(grid_nodes::AbstractMatrix, nbins::Int, @Const(lower::NTuple{N, T}), @Const(upper::NTuple{N, T})) where {N, T}
 
     bin_idx, dim_idx = @index(Global, NTuple)
 
@@ -61,7 +58,7 @@ end
 function _fill_uniformly!(grid::VegasGrid, lower::NTuple{N, T}, upper::NTuple{N, T}) where {N, T <: Real}
 
     # TODO: use different blocksizes for CPU or GPU!
-    _fill_uniformly_kernel(get_backend(grid), 32)(grid.nodes, lower, upper, ndrange = size(grid.nodes))
+    _fill_uniformly_kernel(get_backend(grid), 32)(grid.nodes, nbins(grid), lower, upper, ndrange = size(grid.nodes))
 
     return nothing
 end
