@@ -13,7 +13,8 @@ function testsuite_project2(backend, el_type, nbins, dim)
     grid = uniform_vegas_grid(backend, LOWER, UPPER, nbins)
 
     @testset "ALPHA = $ALPHA" for ALPHA in (
-            el_type(1.0), # should leave the grid unchanged
+            zero(el_type), # should leave the grid unchanged
+            one(el_type),
             el_type(1.5),
         )
 
