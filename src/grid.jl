@@ -1,5 +1,24 @@
 abstract type AbstractVegasGrid end
 
+"""
+    VegasGrid{T, N, D, G}
+
+The GPU allocated Vegas grid.
+
+Templates:
+- `T`: The basic data type, e.g. `Float32`
+- `N`: The number of grid lines of the Vegas grid per dimension, e.g. `100`
+- `D`: The dimensionality of the Vegas grid, e.g. `3`
+- `G`: The complete type of the grid, including GPU backend information, a vector (if 1D) or matrix
+
+Members:
+- `nodes::G`: The vegas grid lines
+
+Allocate this through `allocate_vegas_grid()` and use `fill_uniformly!()` to initialize it as a uniform grid.
+Alternatively, do both in one step using `uniform_vegas_grid()`.
+
+`eltype()`, `nbins()`, `ndims()`, and `get_backend()` are statically defined on this grid.
+"""
 struct VegasGrid{T, N, D, G} <: AbstractVegasGrid
     nodes::G
 
