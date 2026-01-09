@@ -16,7 +16,7 @@ Members:
 - `target_weights::W`: The calculated weights of the samples
 - `jacobians::J`: The calculated jacobians of the samples
 
-Allocate this through [`allocate_vegas_batch`](@ref).
+Allocate this through `allocate_vegas_batch`.
 
 `eltype()`, `length()`, `size()`, and `get_backend()` are statically defined on this buffer.
 """
@@ -86,7 +86,18 @@ KernelAbstractions.get_backend(buf::VegasBatchBuffer) = get_backend(buf.values)
 
 The GPU buffer for some statistical values used during training.
 
-- T: The type
+Templates:
+- `T`: The underlying element type, for example `Float32`
+- `V`: The actual backend aware vector type
+
+Members:
+- `weighted_mean::V`: The weighted mean, only one value so the vector has length 1
+- `variance::V`: The variance, only one value so the vector has length 1
+- `chi_squared::V`: The chi squared statistic, only one value so the vector has length 1
+
+`eltype()` is statically defined on this type.
+
+Allocate using `_allocate_vegas_output`.
 """
 struct VegasOutBuffer{T, V}
     weighted_mean::V
