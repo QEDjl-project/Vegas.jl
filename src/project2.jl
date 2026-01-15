@@ -23,8 +23,8 @@
 end
 
 function stencil_vegas!(backend, bins_buffer::AbstractVecOrMat, alpha::Real)
-    if get_backend(bins_buffer) != backend
-        throw(ArgumentError("buffer is not associated with passed backend"))
+    if typeof(get_backend(bins_buffer)) != typeof(backend)
+        throw(ArgumentError("buffer does not belong to the passed backend"))
     end
 
     bins = size(bins_buffer, 1)
