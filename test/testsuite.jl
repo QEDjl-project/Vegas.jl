@@ -21,8 +21,8 @@ function testsuite_run(backend, vec_type, el_type)
     end
 
     @testset "project 1" begin
-        @testset "dim = 1" testsuite_project1(backend, el_type, 2^5, 1)
-        @testset "dim = 11" testsuite_project1(backend, el_type, 2^5, 11)
+        @testset "dim = 1" testsuite_project1(backend, el_type, 2^5 - 1, 1) # 2^5 - 1 nbins -> 32 grid lines
+        @testset "dim = 11" testsuite_project1(backend, el_type, 2^5 - 1, 11)  # 2^5 - 1 nbins -> 32 grid lines
     end
 
     @testset "project 2" begin
