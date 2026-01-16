@@ -7,7 +7,7 @@ using Vegas: stencil_vegas!, scan_vegas!, refine_vegas!
 
 # NOTE: The function signature can be changed, but must be adjusted in testuite.jl as well.
 function testsuite_project2(backend, el_type, nbins, dim)
-    LOWER = ntuple(_ -> el_type(0.0), dim)
+    LOWER = ntuple(_ -> el_type(-1.0), dim)
     UPPER = ntuple(_ -> el_type(1.0), dim)
 
     grid = uniform_vegas_grid(backend, LOWER, UPPER, nbins)
@@ -18,8 +18,14 @@ function testsuite_project2(backend, el_type, nbins, dim)
             el_type(1.5),
         )
 
-        # TODO: this needs to be filled with some sensible data from project 1
         bins_buffer = allocate(backend, el_type, (nbins, dim))
+
+        # TODO: this needs to be filled with some sensible data from project 1
+        cpu_bins_buffer = Matrix(bins_buffer)
+        for d in 1:dim, n in 1:nbins
+            cpu_bins_buffer[n, d] = 5 + rand(el_type)
+        end
+        copyto!(bins_buffer, cpu_bins_buffer)
 
         # == STENCIL + COMPRESSION ==
         # TODO: implement this `stencil_vegas!` call
