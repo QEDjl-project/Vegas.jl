@@ -1,23 +1,23 @@
 # TBW
 
-@kernel function _vegas_stencil_kernel!(@Const(bins_buffer::AbstractVecOrMat), @Const(sums::AbstractMatrix), @Const(alpha::Real), output_buffer::AbstractVecOrMat)
-    bins, _ = @ndrange()
+@kernel function _vegas_stencil_kernel!(output_buffer::AbstractVecOrMat, @Const(bins_buffer::AbstractVecOrMat), @Const(sums::AbstractMatrix), @Const(alpha::Real))
+    T = promote_type(eltype(bins_buffer), typeof(alpha))
     bin_idx, dim_idx = @index(Global, NTuple)
 
     # smoothing
-    @inbounds smoothed = if bin_idx == 1
-        (7 * bins_buffer[1, dim_idx] + bins_buffer[2, dim_idx]) / 8
-    elseif bin_idx == bins
-        (bins_buffer[bins - 1, dim_idx] + 7 * bins_buffer[bins, dim_idx]) / 8
+    @inbounds smoothed = if bin_idx == firstindex(bins_buffer, 1)
+        (T(7) * bins_buffer[bin_idx, dim_idx] + bins_buffer[nextind(bins_buffer, bin_idx), dim_idx]) / T(8)
+    elseif bin_idx == lastindex(bins_buffer, 1)
+        (T(7) * bins_buffer[bin_idx, dim_idx] + bins_buffer[prevind(bins_buffer, bin_idx), dim_idx]) / T(8)
     else
-        (bins_buffer[bin_idx - 1, dim_idx] + 6 * bins_buffer[bin_idx, dim_idx] + bins_buffer[bin_idx + 1, dim_idx]) / 8
+        (T(6) * bins_buffer[bin_idx, dim_idx] + bins_buffer[prevind(bins_buffer, bin_idx), dim_idx] + bins_buffer[nextind(bins_buffer, bin_idx), dim_idx]) / T(8)
     end
 
     # normalization
-    normalized = smoothed / @inbounds sums[1, dim_idx]
+    normalized = smoothed / @inbounds sums[begin, dim_idx]
 
     # compression
-    compressed = ((1 - normalized) / (log(1 / normalized)))^alpha
+    compressed = ((one(T) - normalized) / (log(inv(normalized))))^alpha
 
     @inbounds output_buffer[bin_idx, dim_idx] = compressed
 end
@@ -36,9 +36,9 @@ function stencil_vegas!(backend, bins_buffer::AbstractVecOrMat, alpha::Real)
     sums = allocate(backend, eltype(bins_buffer), (1, dims))
     output_buffer = allocate(backend, eltype(bins_buffer), size(bins_buffer))
 
-    sum!(sums, bins_buffer)                 # should be specialized to run on the GPU
-    _vegas_stencil_kernel!(backend)(bins_buffer, sums, alpha, output_buffer, ndrange = (bins, dims))
-    copyto!(bins_buffer, output_buffer)     # should be specialized to run on the GPU
+    sum!(sums, bins_buffer)                 # uses GPU implementation
+    _vegas_stencil_kernel!(backend)(output_buffer, bins_buffer, sums, alpha, ndrange = (bins, dims))
+    copyto!(bins_buffer, output_buffer)     # uses GPU implementation
     return nothing
 end
 
