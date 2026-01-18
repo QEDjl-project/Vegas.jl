@@ -4,6 +4,9 @@
 # Pkg, Test, SafeTestsets, Random, GPUArrays, KernelAbstractions, StaticArrays, Vegas, Vegas.TestUtils
 
 using Vegas: sample_vegas!, binning_vegas!
+using Plots
+include("random_utils.jl")
+
 
 # NOTE: The function signature can be changed, but must be adjusted in testuite.jl as well.
 function testsuite_project1(backend, el_type, nbins, dim)
@@ -17,13 +20,18 @@ function testsuite_project1(backend, el_type, nbins, dim)
         grid = uniform_vegas_grid(backend, LOWER, UPPER, nbins)
 
         # == SAMPLING ==
-        # TODO: implement the `sample_vegas!` call:
-        @test isnothing(sample_vegas!(backend, buffer, grid))
+        @test isnothing(sample_vegas!(backend, buffer, grid, normal_distribution))
+
+        # samples = Array{el_type, dim}(undef, dim, batch_size)
+        samples = zeros(el_type, dim, batch_size)
+        copyto!(samples, buffer.values)
+        plot(1:batch_size, samples[1, :])
+        # plot(1:batch_size, buffer.values)
+        savefig("sampling.pdf")
 
         # == BINNING ==
-        # TODO: implement the `binning_vegas!` call:
         bins_buffer = allocate(backend, el_type, (nbins, dim))
-        @test isnothing(binning_vegas!(backend, bins_buffer, buffer, grid))
+        @test isnothing(binning_vegas!(backend, bins_buffer, buffer, grid, normal_distribution))
 
         # TODO: add some sanity checks on the results
     end
