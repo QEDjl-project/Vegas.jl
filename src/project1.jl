@@ -21,7 +21,13 @@
     end
     
     jacobians[i] = jac
-    # target_weights[i] = jac * func(values[i, : ])
+
+    f_val = one(eltype(values))
+    for d in 1:D
+        f_val *= jac * func(values[i,d])
+    end
+
+    target_weights[i] = f_val
 
 end
 
