@@ -24,12 +24,12 @@ function testsuite_project1(backend, el_type, nbins, dim)
 
         # samples = Array{el_type, dim}(undef, dim, batch_size)
         samples = zeros(el_type, batch_size, dim)
-        D = size(buffer)[2]
-        println("Dimensions: ",D, "Samples: " , size(buffer)[1])
+        println("Dimensions: ",dim, "Samples: " , batch_size)
         copyto!(samples, buffer.values)
+        
         b_range = range(0, 1, length=100)
         histogram!(samples[:,1], bins=b_range)
-        savefig("scatter_$(D)_$(el_type).pdf")
+        savefig("scatter_$(batch_size)_$(dim)_$(el_type).pdf")
         # plot(1:nbins, [sum([1 for x in samples[ : , 1] if bin < x < bin + 1]) for bin in 1:nbins])
         # plot(1:batch_size, samples[ : , 1])
         # savefig("sampling_$(dim)_$(batch_size).pdf")
