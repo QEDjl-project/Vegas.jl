@@ -25,9 +25,9 @@ function testsuite_project1(backend, el_type, nbins, dim)
         # samples = Array{el_type, dim}(undef, dim, batch_size)
         samples = zeros(el_type, dim, batch_size)
         copyto!(samples, buffer.values)
-        plot(1:batch_size, samples[1, :])
-        # plot(1:batch_size, buffer.values)
-        savefig("sampling.pdf")
+        # plot(1:nbins, [sum([1 for x in samples[ : , 1] if bin < x < bin + 1]) for bin in 1:nbins])
+        # plot(1:batch_size, samples[ : , 1])
+        # savefig("sampling_$(dim)_$(batch_size).pdf")
 
         # == BINNING ==
         bins_buffer = allocate(backend, el_type, (nbins, dim))

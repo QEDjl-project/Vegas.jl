@@ -1,6 +1,4 @@
-# TBW
-
-@kernel function vegas_sampling_kernel!(values, jacobians, grid_lines, yi_samples, yd_samples, func, @Const(Ng), @Const(D))
+@kernel function vegas_sampling_kernel!(values, target_weights, jacobians, grid_lines, yi_samples, yd_samples, func, @Const(Ng), @Const(D))
     
     i = @index(Global)
 
@@ -18,12 +16,13 @@
         width = x_end - x_start
         
         values[i, d] = x_start + width * yd
-        func(x_start + width * yd)
         jac *= Ng * width
-
+        
     end
-
+    
     jacobians[i] = jac
+    # target_weights[i] = jac * func(values[i, : ])
+
 end
 
 function sample_vegas!(backend, buffer::VegasBatchBuffer{T, N, D, V, W, J}, grid::VegasGrid{T, Ng, D, G}, func::Function) where {T <: AbstractFloat, N, D, V, W, J, Ng, G}
@@ -34,7 +33,10 @@ function sample_vegas!(backend, buffer::VegasBatchBuffer{T, N, D, V, W, J}, grid
 
     # it's a good idea to add some sanity checks too, like asserting that the buffers exist on the same backend, have matching dimensionalities where applicable, etc.
 
-    
+    # buffer.values = N x D
+    # grid.target_weights = N
+    # grid.jacobians = N
+    # grid.nodes = Ng x D
 
     @assert get_backend(buffer) == get_backend(grid) == backend
     # println("Using backend ", backend)
@@ -52,11 +54,11 @@ function sample_vegas!(backend, buffer::VegasBatchBuffer{T, N, D, V, W, J}, grid
     copyto!(yd_device, yd_samples)
 
     println("Calling sampling kernel")
-    vegas_sampling_kernel!(backend)(buffer.values, buffer.jacobians, grid.nodes, yi_device, yd_device, func::Function, Ng, D, ndrange = N)
-    synchronize(backend)
-
-    # println(buffer.values)
+    vegas_sampling_kernel!(backend)(buffer.values, buffer.target_weights, buffer.jacobians, grid.nodes, yi_device, yd_device, func::Function, Ng, D, ndrange = N)
     
+    synchronize(backend)
+    println("Kernel finished")
+
     return nothing
 end
 
@@ -65,28 +67,44 @@ end
 
     i = @index(Global)
 
+    # buffer.values = N x D
+    # grid.jacobians = N
+    # grid.nodes = Ng x D
+
+
+    eltype = eltype(values[first, first])
     nbins = Ng - 1
-    bin = i % D % nbins
-    dim = (i / nbins) % D
-    Ndi = 0
-    bins_buffer[bin, dim] = 0
+    bin = ones(eltype, d) # get this from @index
+    Ndi = zeros(D)
+    bounds = Array{Tuple(eltype)}(undef, D)
 
     # lower and upper bound for my bin
-    bound_lower = grid_lines[bin, dim]
-    bound_upper = grid_lines[bin + 1, dim]
+    for d in 1:D
+    
+        bounds[d] = (grid_lines[bin[d], d], grid_lines[bin[d] + 1, d])
+        bins_buffer[bin[d], d] = 0
+
+    end
     
     # TODO: need batch size here
     for sample in 1:size(values, 1)
         
-        if bound_lower < values[sample, dim] < bound_upper
+        for d in 1:D
 
-            bins_buffer[bin, dim] += func(values[sample, dim]) ^ 2
-            Ndi += 1
+            if bound_lower < values[sample, d] < bound_upper
 
+                bins_buffer[bin, d] += func(values[sample, :]) ^ 2
+                Ndi += 1
+            end
         end
     end
 
-    bins_buffer[bin, dim] *= jacobians[bin] ^ 2 / Ndi
+    for d in 1:D
+    
+        bins_buffer[bin[d], dim] *= jacobians[bin[d]] ^ 2 / Ndi[d]
+
+    end
+
 
 end
 
@@ -97,11 +115,19 @@ function binning_vegas!(backend, bins_buffer::AbstractVecOrMat{T}, buffer::Vegas
     # Approach fürs Thread Layout beim Binning: pro Bin ein Thread, welcher alle Samples iteriert und schnell prüft ob das sample in den Grenzen zum eigenen Bin liegt
     # Refinement: Block Size für Samples, damit sich mehrere Threads einen Bin teilen und und jeweils nen Subset aller Samples prüfen (nicht sicher ob richtig verstanden, damit wird sync belastender)
     
-    println("Calling binning kernel")
-    batch_size = N
 
-    vegas_binning_kernel!(backend)(bins_buffer, buffer.values, buffer.target_weights, buffer.jacobians, grid.nodes, func, Ng, D, ndrange = (Ng - 1) * D * N / batch_size)
+    # bins_buffer = Ng-1 x D
+
+    batch_size = N
+    number_of_bins = (Ng - 1) ^ D
+    threads_per_bin = N / batch_size
+    
+    println("Calling binning kernel")
+    
+    vegas_binning_kernel!(backend)(bins_buffer, buffer.values, buffer.target_weights, buffer.jacobians, grid.nodes, func, Ng, D, ndrange = (number_of_bins, threads_per_bin))
+    
     synchronize(backend)
+    println("Kernel finished")
 
     return nothing
 end
