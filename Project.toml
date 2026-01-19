@@ -5,9 +5,11 @@ authors = ["Uwe Hernandez Acosta <u.hernandez@hzdr.de>", "Anton Reinhard"]
 
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
+Atomix = "a9b6321e-bd34-4604-b9c9-b65b8de01458"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 GPUArrays = "0c68f7d7-f131-5f86-a1c3-88cf8149b2d7"
 KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
+Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 QEDbase = "10e22c08-3ccb-4172-bfcf-7d7aa3d04d93"
 QEDcore = "35dc0263-cb5f-4c33-a114-1d7f54ab753e"
 QEDevents = "fc3ce04a-5be5-4f3a-acff-eceaab723759"
@@ -29,9 +31,11 @@ oneAPIExt = "oneAPI"
 
 [compat]
 Adapt = "4.4.0"
+Atomix = "1.1.2"
 Distributions = "0.25.122"
 GPUArrays = "11.3.1"
 KernelAbstractions = "0.9.39"
+Plots = "1.41.4"
 QEDbase = "0.5.2"
 QEDcore = "0.4.1"
 QEDevents = "0.3.1"
