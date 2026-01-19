@@ -28,35 +28,39 @@ function testsuite_project1(backend, el_type, nbins, dim)
         # == SAMPLING ==
         @test isnothing(sample_vegas!(backend, buffer, grid, normal_distribution))
 
-        # samples = Array{el_type, dim}(undef, dim, batch_size)
+
+        println("plotting...")
         samples = zeros(el_type, batch_size, dim)
         copyto!(samples, buffer.values)
-        
+
         b_range = range(0, 1, length=100)
-        histogram!(samples[:,1], bins=b_range)
-        savefig("scatter_$(batch_size)_$(dim)_$(el_type).png")
-        # plot(1:nbins, [sum([1 for x in samples[ : , 1] if bin < x < bin + 1]) for bin in 1:nbins])
-        # plot(1:batch_size, samples[ : , 1])
-        # savefig("sampling_$(dim)_$(batch_size).pdf")
+        histogram(samples[:,1], bins=b_range, legend = false, title = "Sampling Distribution", xlabel = "Sample range [0:1)", ylabel = "Distribution [#]")
+        savefig("sampling_$(batch_size)_$(dim)_$(el_type).png")
+
+        weights = zeros(el_type, batch_size)
+        copyto!(weights, buffer.target_weights)
+        
+        scatter(range(0, batch_size), weights, legend = false, title = "Weighted Samples", xlabel = "Sample [$batch_size]", ylabel = "Weight [%]")
+        savefig("weights_$(batch_size)_$(dim)_$(el_type).png")
+        
 
         # == BINNING ==
         bins_buffer = allocate(backend, el_type, (nbins, dim))
         @test isnothing(binning_vegas!(backend, bins_buffer, buffer, grid, normal_distribution))
 
+        println("plotting...")
+        binned = zeros(el_type, nbins, dim)
+        copyto!(binned, bins_buffer)
+        
+        bar(range(0, nbins), binned[:, 1], legend = false, title = "Binning - Samples per Bin", xlabel = "Bin [$nbins]", ylabel = "Amount of samples in this bin [#]")
+        savefig("binning_$(batch_size)_$(dim)_$(el_type).png")
+
+        # TODO: add some sanity checks on the results
         for d in 1:dim
             println(bins_buffer[:, d])
         end
         println(sum(bins_buffer), " / ", batch_size * dim, " = ", sum(bins_buffer) / (batch_size * dim))
-        
-        binned_bins = zeros(el_type, nbins, dim)
-        copyto!(binned_bins, bins_buffer)
-        
-        b_range = range(0, 1, length=100)
-        histogram!(binned_bins[:,1], bins=b_range)
-        savefig("binning_$(batch_size)_$(dim)_$(el_type).png")
-
-        # TODO: add some sanity checks on the results
-        @show @assert sum(bins_buffer) == batch_size * dim
+        @assert sum(bins_buffer) == batch_size * dim
     end
 
     return

@@ -56,7 +56,8 @@ function sample_vegas!(backend, buffer::VegasBatchBuffer{T, N, D, V, W, J}, grid
     @assert prod(size(buffer.values)) == N * D
     println("Number of samples / dimensions: ", N, " / ", ndims(grid))
 
-    yi_samples = rand(1:Ng-1, (N, D))
+    # yi_samples = rand(1:Ng-1, (N, D))
+    yi_samples = rand(1:div(Ng, 3) * 2, (N, D))
     yd_samples = rand(T, (N, D))
     
     yi_device = KernelAbstractions.allocate(backend, Int, N, D)
@@ -64,7 +65,7 @@ function sample_vegas!(backend, buffer::VegasBatchBuffer{T, N, D, V, W, J}, grid
     copyto!(yi_device, yi_samples)
     copyto!(yd_device, yd_samples)
 
-    println("Calling sampling kernel with ndrange ", N)
+    println("Calling sampling kernel with $N threads")
     vegas_sampling_kernel!(backend)(buffer.values, buffer.target_weights, buffer.jacobians, grid.nodes, yi_device, yd_device, func::Function, Ng, D, ndrange = N)
     
     synchronize(backend)
@@ -85,7 +86,7 @@ end
     batch_size = (nbins ^ D) / prod(@ndrange())
 
     for sample in 1:size(values, 1)
-        if all(d -> grid_lines[bin[d], d] < values[sample, d] < grid_lines[bin[d] + 1, d], 1:D)
+        if all(d -> grid_lines[bin[d], d] <= values[sample, d] < grid_lines[bin[d] + 1, d], 1:D)
             Ndi += 1
             # bins_buffer[bin[d], d] += func(values[sample, :]) ^ 2
         end
@@ -126,8 +127,9 @@ function binning_vegas!(backend, bins_buffer::AbstractMatrix{T}, buffer::VegasBa
     bins_per_thread = 1
     nbins = Ng - 1
     ndranges = Tuple(nbins ÷ bins_per_thread for _ in 1:D)
-    
-    println("Calling binning kernel with ndranges ", ndranges)
+    fill!(bins_buffer, 0)
+
+    println("Calling binning kernel with $(ndranges) = $(prod(ndranges)) threads")
     
     vegas_binning_kernel!(backend)(bins_buffer, buffer.values, buffer.target_weights, buffer.jacobians, grid.nodes, func, Ng, D, ndrange = ndranges)
     
