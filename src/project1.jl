@@ -1,3 +1,5 @@
+using Atomix: @atomic
+
 @kernel function vegas_sampling_kernel!(values, target_weights, jacobians, grid_lines, yi_samples, yd_samples, func, @Const(Ng), @Const(D))
     
     i = @index(Global)
@@ -22,12 +24,15 @@
     
     jacobians[i] = jac
 
-    f_val = one(eltype(values))
+    # Broadcasting with prod() doesn't work here because it seems to dynamically allocate memory?
+    # Reason: unsupported call to an unknown function (call to jl_alloc_genericmemory_unchecked)
+    target_weight = one(eltype(values))
     for d in 1:D
-        f_val *= jac * func(values[i,d])
+        # TODO: multiply jacobian always or once?
+        target_weight *= jac * func(values[i,d])
     end
 
-    target_weights[i] = f_val
+    target_weights[i] = target_weight
 
 end
 
@@ -49,7 +54,7 @@ function sample_vegas!(backend, buffer::VegasBatchBuffer{T, N, D, V, W, J}, grid
     
     @assert size(buffer.values, 2) == ndims(grid)
     @assert prod(size(buffer.values)) == N * D
-    println("Number of samples, dimensions: ", N, ", ", ndims(grid))
+    println("Number of samples / dimensions: ", N, " / ", ndims(grid))
 
     yi_samples = rand(1:Ng-1, (N, D))
     yd_samples = rand(T, (N, D))
@@ -59,11 +64,11 @@ function sample_vegas!(backend, buffer::VegasBatchBuffer{T, N, D, V, W, J}, grid
     copyto!(yi_device, yi_samples)
     copyto!(yd_device, yd_samples)
 
-    println("Calling sampling kernel")
+    println("Calling sampling kernel with ndrange ", N)
     vegas_sampling_kernel!(backend)(buffer.values, buffer.target_weights, buffer.jacobians, grid.nodes, yi_device, yd_device, func::Function, Ng, D, ndrange = N)
     
     synchronize(backend)
-    println("Kernel finished")
+    println("Sampling kernel finished")
 
     return nothing
 end
@@ -71,69 +76,63 @@ end
 # TODO: completely untested, treat as pseudo-code 
 @kernel function vegas_binning_kernel!(bins_buffer, values, target_weights, jacobians, grid_lines, func, @Const(Ng), @Const(D))
 
-    i = @index(Global)
-
-    # buffer.values = N x D
-    # grid.jacobians = N
-    # grid.nodes = Ng x D
-
-
-    eltype = eltype(values[first, first])
+    bin = @index(Global, Cartesian)
+    
+    T = eltype(values)
     nbins = Ng - 1
-    bin = ones(eltype, d) # get this from @index
-    Ndi = zeros(D)
-    bounds = Array{Tuple(eltype)}(undef, D)
+    Ndi = 0
+    # TODO: InexactError: trunc(UInt32, 52879244321342)
+    batch_size = (nbins ^ D) / prod(@ndrange())
 
-    # lower and upper bound for my bin
-    for d in 1:D
-    
-        bounds[d] = (grid_lines[bin[d], d], grid_lines[bin[d] + 1, d])
-        bins_buffer[bin[d], d] = 0
-
-    end
-    
-    # TODO: need batch size here
     for sample in 1:size(values, 1)
-        
-        for d in 1:D
-
-            if bound_lower < values[sample, d] < bound_upper
-
-                bins_buffer[bin, d] += func(values[sample, :]) ^ 2
-                Ndi += 1
-            end
+        if all(d -> grid_lines[bin[d], d] < values[sample, d] < grid_lines[bin[d] + 1, d], 1:D)
+            Ndi += 1
+            # bins_buffer[bin[d], d] += func(values[sample, :]) ^ 2
         end
     end
 
-    for d in 1:D
-    
-        bins_buffer[bin[d], dim] *= jacobians[bin[d]] ^ 2 / Ndi[d]
 
+    # for sample in 1:size(values, 1)
+        
+    #     for d in 1:D
+    #         if grid_lines[bin[d], d] < values[sample, d] < grid_lines[bin[d] + 1, d]
+    #             Ndi += 1
+    #         end
+#             bins_buffer[bin[d], d] += func(values[sample, :]) ^ 2
+    #     end
+    # end
+
+    for d in 1:D
+        @atomic bins_buffer[bin[d], d] += Ndi   # TODO: currently just count number of elements in bin, replace with next statement
+        # bins_buffer[bin[d], d] *= jacobians[bin[d]] ^ 2 / Ndi
     end
 
 
 end
 
 
-
-function binning_vegas!(backend, bins_buffer::AbstractVecOrMat{T}, buffer::VegasBatchBuffer{T, N, D, V, W, J}, grid::VegasGrid{T, Ng, D, G}, func::Function) where {T <: AbstractFloat, N, D, V, W, J, Ng, G}
+function binning_vegas!(backend, bins_buffer::AbstractMatrix{T}, buffer::VegasBatchBuffer{T, N, D, V, W, J}, grid::VegasGrid{T, Ng, D, G}, func::Function) where {T <: AbstractFloat, N, D, V, W, J, Ng, G}
 
     # Approach fürs Thread Layout beim Binning: pro Bin ein Thread, welcher alle Samples iteriert und schnell prüft ob das sample in den Grenzen zum eigenen Bin liegt
     # Refinement: Block Size für Samples, damit sich mehrere Threads einen Bin teilen und und jeweils nen Subset aller Samples prüfen (nicht sicher ob richtig verstanden, damit wird sync belastender)
     
 
     # bins_buffer = Ng-1 x D
+    # buffer.values = N x D
+    # grid.jacobians = N
+    # grid.nodes = Ng x D
 
-    batch_size = N
-    number_of_bins = (Ng - 1) ^ D
-    threads_per_bin = N / batch_size
+
+    bins_per_thread = 1
+    nbins = Ng - 1
+    ndranges = Tuple(nbins ÷ bins_per_thread for _ in 1:D)
     
-    println("Calling binning kernel")
+    println("Calling binning kernel with ndranges ", ndranges)
     
-    vegas_binning_kernel!(backend)(bins_buffer, buffer.values, buffer.target_weights, buffer.jacobians, grid.nodes, func, Ng, D, ndrange = (number_of_bins, threads_per_bin))
+    vegas_binning_kernel!(backend)(bins_buffer, buffer.values, buffer.target_weights, buffer.jacobians, grid.nodes, func, Ng, D, ndrange = ndranges)
     
     synchronize(backend)
-    println("Kernel finished")
+    println("Binning kernel finished")
 
     return nothing
 end
