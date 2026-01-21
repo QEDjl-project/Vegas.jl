@@ -3,6 +3,7 @@
 # NOTE: packages/modules already loaded:
 # Pkg, Test, SafeTestsets, Random, GPUArrays, KernelAbstractions, StaticArrays, Vegas, Vegas.TestUtils
 
+using Distributions
 using Vegas: sample_vegas!, binning_vegas!
 
 # NOTE: The function signature can be changed, but must be adjusted in testuite.jl as well.
