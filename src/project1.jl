@@ -1,10 +1,9 @@
 using Atomix: @atomic
 
-@kernel function vegas_sampling_kernel!(values, target_weights, jacobians, grid_lines, func, @Const(Ng), @Const(D))
-    
+@kernel function vegas_sampling_kernel!(values, target_weights, jacobians, grid_lines, func, @Const(Ng), d::Val{D}) where {D}
     i = @index(Global)
 
-    @private jac = one(eltype(jacobians))
+    jac = one(eltype(jacobians))
 
     # TODO: generate random values with rand()
     # TODO: sample just one f32 from 0 to 1, scale it to Ng to calculate both yi and yd
@@ -31,11 +30,15 @@ using Atomix: @atomic
 
     # Broadcasting with prod() doesn't work here because it seems to dynamically allocate memory?
     # "Reason: unsupported call to an unknown function (call to jl_alloc_genericmemory_unchecked)"
-    target_weights[i] = one(eltype(target_weights))
+    V = ntuple(d -> (@inbounds values[i, d]), Val(D))
+    target_weights[i] = jac * func(V)
+
+    #=target_weights[i] = one(eltype(target_weights))
     for d in 1:D
         # TODO: multiply jacobian always or once?
-        target_weights[i] *= jac * func(values[i,d])
+        target_weights[i] *= jac * func(values[i, d])
     end
+    =#
 
 end
 
@@ -69,16 +72,16 @@ function sample_vegas!(backend, buffer::VegasBatchBuffer{T, N, D, V, W, J}, grid
     # copyto!(yd_device, yd_samples)
 
     println("Calling sampling kernel with $N threads")
-    vegas_sampling_kernel!(backend)(buffer.values, buffer.target_weights, buffer.jacobians, grid.nodes, func::Function, Ng, D, ndrange = N)
-    
+    vegas_sampling_kernel!(backend)(buffer.values, buffer.target_weights, buffer.jacobians, grid.nodes, func::Function, Ng, Val(D), ndrange = N)
+
     synchronize(backend)
     println("Sampling kernel finished")
 
     return nothing
 end
 
-# TODO: completely untested, treat as pseudo-code 
-@kernel function vegas_binning_kernel!(bins_buffer, values, target_weights, jacobians, grid_lines, func, @Const(Ng), @Const(D))
+# TODO: completely untested, treat as pseudo-code
+@kernel function vegas_binning_kernel!(bins_buffer, values, target_weights, jacobians, grid_lines, func, @Const(Ng), ::Val{D}) where {D}
 
     bin = @index(Global, Cartesian)
     
@@ -133,8 +136,8 @@ function binning_vegas!(backend, bins_buffer::AbstractMatrix{T}, buffer::VegasBa
     fill!(bins_buffer, 0)
 
     println("Calling binning kernel with $(ndranges) = $(prod(ndranges)) threads")
-    
-    vegas_binning_kernel!(backend)(bins_buffer, buffer.values, buffer.target_weights, buffer.jacobians, grid.nodes, func, Ng, D, ndrange = ndranges)
+
+    vegas_binning_kernel!(backend)(bins_buffer, buffer.values, buffer.target_weights, buffer.jacobians, grid.nodes, func, Ng, Val(D), ndrange = ndranges)
     
     synchronize(backend)
     println("Binning kernel finished")

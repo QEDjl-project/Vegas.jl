@@ -9,10 +9,13 @@ using Plots
 plotting = true
 
 # definition of a simple E = 0, σ = 1 normal distribution
-normal_distribution(u::T) where {T <: Number} = inv(sqrt(T(2) * π)) * exp(-(u^2 / T(2)))
+@inline normal_distribution(u::T) where {T <: Number} = inv(sqrt(T(2) * π)) * exp(-(u^2 / T(2)))
+
+
+@inline normal_distribution(u::T, args::Vararg{T, N}) where {T <: Number, N} = normal_distribution(u) * normal_distribution(args...)
 
 # can be used as a target function
-normal_distribution(u::Vector{T}) where {T <: Number} = prod(normal_distribution.(u))
+normal_distribution(u::NTuple{N, T}) where {N, T <: Number} = @inline normal_distribution(u...)
 
 
 # NOTE: The function signature can be changed, but must be adjusted in testuite.jl as well.
