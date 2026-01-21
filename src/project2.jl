@@ -43,31 +43,7 @@ function stencil_vegas!(backend, bins_buffer::AbstractVecOrMat, alpha::Real)
 end
 
 using KernelAbstractions
-
-@kernel function _inclusive_scan_cols!(A, N::Int32, D::Int32)
-    d = @index(Global)
-    if d <= D
-        T = eltype(A)
-        acc = zero(T)
-        @inbounds for i in Int32(1):N
-            acc += A[i, d]
-            A[i, d] = acc
-        end
-    end
-end
-
-@kernel function _inclusive_scan_vec!(v, N::Int32)
-    # v is length N
-    tid = @index(Global)
-    if tid == 1
-        T = eltype(v)
-        acc = zero(T)
-        @inbounds for i in Int32(1):N
-            acc += v[i]
-            v[i] = acc
-        end
-    end
-end
+import AcceleratedKernels as AK
 
 @kernel function _get_last_col!(lastvals, A, N::Int32, D::Int32)
     d = @index(Global)
@@ -76,43 +52,38 @@ end
     end
 end
 
-function scan_vegas!(backend, bins_buffer::AbstractVecOrMat)
-    # write the scanning code here
-    # bins_buffer is both input and output, override it with the result
-
-    # caluclate this value too, take care it has the right element type
-    T = eltype(bins_buffer)
-    avg_d = T(0.0)
-    if bins_buffer isa AbstractVector
-        # Treat as (N, 1)
-        N = Int32(length(bins_buffer))
-
-        # Inclusive scan in-place
-        _inclusive_scan_vec!(backend)(bins_buffer, N; ndrange=1)
-
-        KernelAbstractions.synchronize(backend)
-
-        Sd = bins_buffer[Int(N)]   # total sum
-        avg_d = T(Sd) / T(N)       # δ = S / N  (matches your refine: target=k*avg_d, k=1..N-1)
-        return avg_d
+@kernel function _scale_by_invN!(out, lastvals, invN, D::Int32)
+    d = @index(Global)
+    if d <= D
+        @inbounds out[d] = lastvals[d] * invN
     end
+end
 
-    @assert bins_buffer isa AbstractMatrix
-    N = Int32(size(bins_buffer, 1))  # nbins
-    D = Int32(size(bins_buffer, 2))  # dim
-
-    # 1) Inclusive scan per column (in-place)
-    _inclusive_scan_cols!(backend)(bins_buffer, N, D; ndrange=Int(D))
+function scan_vegas!(backend, bins_buffer::AbstractVecOrMat)
+    T = eltype(bins_buffer)
+    
+    # Handle the vector case
+    A = bins_buffer isa AbstractVector ? reshape(bins_buffer, :, 1) : bins_buffer
+    
+    N = Int32(size(A, 1))
+    D = Int32(size(A, 2))
+    # 1) Inclusive scan per column (in-place) using AcceleratedKernels
+    #    dims=1 means scanning along the first dimension (column-wise)
+    AK.accumulate!(+, A, A; dims=1, init=zero(T))
+    
+    # 2) Get the last value of each column
+    lastvals = similar(A, T, (Int(D),))
+    kernel_last = _get_last_col!(backend)
+    kernel_last(lastvals, A, N, D; ndrange=Int(D))
     KernelAbstractions.synchronize(backend)
-
-    # 2) Compute scalar avg_d.
-    #    Your refine uses ONE avg_d for all dims, so we take mean of S_d across dims.
-    lastvals = similar(bins_buffer, T, (Int(D),))
-    _get_last_col!(backend)(lastvals, bins_buffer, N, D; ndrange=Int(D))
+    
+    # 3) Compute avg_d = lastvals / N
+    avg_d = similar(A, T, (Int(D),))
+    invN = T(1) / T(N)
+    kernel_scale = _scale_by_invN!(backend)
+    kernel_scale(avg_d, lastvals, invN, D; ndrange=Int(D))
     KernelAbstractions.synchronize(backend)
-
-    Sd_mean = sum(lastvals) / T(D)
-    avg_d = Sd_mean / T(N)   # δ = S / N  (matches PDF-style scaling and keeps (N-1)*δ < S)
+    
     return avg_d
 end
 
