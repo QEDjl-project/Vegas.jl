@@ -1,6 +1,6 @@
 using Atomix: @atomic
 
-@kernel function vegas_sampling_kernel!(values, target_weights, jacobians, grid_lines, yi_samples, yd_samples, func, @Const(Ng), @Const(D))
+@kernel function vegas_sampling_kernel!(values, target_weights, jacobians, grid_lines, func, @Const(Ng), @Const(D))
     
     i = @index(Global)
 
@@ -10,8 +10,13 @@ using Atomix: @atomic
     # TODO: sample just one f32 from 0 to 1, scale it to Ng to calculate both yi and yd
 
     for d in 1:D
-        yi = yi_samples[i, d]
-        yd = yd_samples[i, d]
+
+        yn = rand(Float32) * (Ng - 1)
+        yi = floor(Int64, yn) + 1
+        yd = yn + 1 - yi
+        
+        # yi = yi_samples[i, d]
+        # yd = yd_samples[i, d]
 
         x_start = grid_lines[yi, d]
         x_end = grid_lines[yi + 1, d]
@@ -25,14 +30,12 @@ using Atomix: @atomic
     jacobians[i] = jac
 
     # Broadcasting with prod() doesn't work here because it seems to dynamically allocate memory?
-    # Reason: unsupported call to an unknown function (call to jl_alloc_genericmemory_unchecked)
-    target_weight = one(eltype(values))
+    # "Reason: unsupported call to an unknown function (call to jl_alloc_genericmemory_unchecked)"
+    target_weights[i] = one(eltype(target_weights))
     for d in 1:D
         # TODO: multiply jacobian always or once?
-        target_weight *= jac * func(values[i,d])
+        target_weights[i] *= jac * func(values[i,d])
     end
-
-    target_weights[i] = target_weight
 
 end
 
@@ -57,16 +60,16 @@ function sample_vegas!(backend, buffer::VegasBatchBuffer{T, N, D, V, W, J}, grid
     println("Number of samples / dimensions: ", N, " / ", ndims(grid))
 
     # yi_samples = rand(1:Ng-1, (N, D))
-    yi_samples = rand(1:div(Ng, 3) * 2, (N, D))
-    yd_samples = rand(T, (N, D))
+    # yi_samples = rand(1:div(Ng, 3) * 2, (N, D))
+    # yd_samples = rand(T, (N, D))
     
-    yi_device = KernelAbstractions.allocate(backend, Int, N, D)
-    yd_device = KernelAbstractions.allocate(backend, T, N, D)
-    copyto!(yi_device, yi_samples)
-    copyto!(yd_device, yd_samples)
+    # yi_device = KernelAbstractions.allocate(backend, Int, N, D)
+    # yd_device = KernelAbstractions.allocate(backend, T, N, D)
+    # copyto!(yi_device, yi_samples)
+    # copyto!(yd_device, yd_samples)
 
     println("Calling sampling kernel with $N threads")
-    vegas_sampling_kernel!(backend)(buffer.values, buffer.target_weights, buffer.jacobians, grid.nodes, yi_device, yd_device, func::Function, Ng, D, ndrange = N)
+    vegas_sampling_kernel!(backend)(buffer.values, buffer.target_weights, buffer.jacobians, grid.nodes, func::Function, Ng, D, ndrange = N)
     
     synchronize(backend)
     println("Sampling kernel finished")
@@ -82,8 +85,8 @@ end
     T = eltype(values)
     nbins = Ng - 1
     Ndi = 0
-    # TODO: InexactError: trunc(UInt32, 52879244321342)
-    batch_size = (nbins ^ D) / prod(@ndrange())
+
+    batch_size = div((nbins ^ D), prod(@ndrange()))
 
     for sample in 1:size(values, 1)
         if all(d -> grid_lines[bin[d], d] <= values[sample, d] < grid_lines[bin[d] + 1, d], 1:D)
@@ -99,7 +102,7 @@ end
     #         if grid_lines[bin[d], d] < values[sample, d] < grid_lines[bin[d] + 1, d]
     #             Ndi += 1
     #         end
-#             bins_buffer[bin[d], d] += func(values[sample, :]) ^ 2
+    #         bins_buffer[bin[d], d] += func(values[sample, :]) ^ 2
     #     end
     # end
 
@@ -116,7 +119,6 @@ function binning_vegas!(backend, bins_buffer::AbstractMatrix{T}, buffer::VegasBa
 
     # Approach fürs Thread Layout beim Binning: pro Bin ein Thread, welcher alle Samples iteriert und schnell prüft ob das sample in den Grenzen zum eigenen Bin liegt
     # Refinement: Block Size für Samples, damit sich mehrere Threads einen Bin teilen und und jeweils nen Subset aller Samples prüfen (nicht sicher ob richtig verstanden, damit wird sync belastender)
-    
 
     # bins_buffer = Ng-1 x D
     # buffer.values = N x D
