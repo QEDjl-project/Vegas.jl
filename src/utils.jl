@@ -25,6 +25,8 @@ function _find_quantile(dist, q::T; approx = sqrt(eps(T))) where {T <: Number}
     hi_q = quantile(dist, hi)
 
     max_runs = Base.significand_bits(T) # number precision bits
+
+    # standard binary search
     for _ in 1:max_runs
         v = lo + (hi - lo) / 2
         v_q = quantile(dist, v)
