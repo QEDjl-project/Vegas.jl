@@ -6,6 +6,7 @@
 using Vegas: sample_vegas!, binning_vegas!
 using Plots
 
+plotting = false
 
 # definition of a simple E = 0, σ = 1 normal distribution
 normal_distribution(u::T) where {T <: Number} = inv(sqrt(T(2) * π)) * exp(-(u^2 / T(2)))
@@ -28,38 +29,45 @@ function testsuite_project1(backend, el_type, nbins, dim)
         # == SAMPLING ==
         @test isnothing(sample_vegas!(backend, buffer, grid, normal_distribution))
 
+        if plotting
+            println("plotting...")
+            samples = zeros(el_type, batch_size, dim)
+            copyto!(samples, buffer.values)
 
-        println("plotting...")
-        samples = zeros(el_type, batch_size, dim)
-        copyto!(samples, buffer.values)
+            b_range = range(0, 1, length=100)
+            histogram(samples[:,1], bins=b_range, legend = false, title = "Sampling Distribution ($(dim) dimensions, $(nbins) bins, $(batch_size) samples)", xlabel = "Sample range [0:1)", ylabel = "Distribution [#]")
+            savefig("sampling_$(batch_size)_$(dim)_$(el_type).png")
 
-        b_range = range(0, 1, length=100)
-        histogram(samples[:,1], bins=b_range, legend = false, title = "Sampling Distribution", xlabel = "Sample range [0:1)", ylabel = "Distribution [#]")
-        savefig("sampling_$(batch_size)_$(dim)_$(el_type).png")
-
-        weights = zeros(el_type, batch_size)
-        copyto!(weights, buffer.target_weights)
-        
-        scatter(range(0, batch_size), weights, legend = false, title = "Weighted Samples", xlabel = "Sample [$batch_size]", ylabel = "Weight [%]")
-        savefig("weights_$(batch_size)_$(dim)_$(el_type).png")
-        
+            weights = zeros(el_type, batch_size)
+            copyto!(weights, buffer.target_weights)
+            
+            scatter(range(0, batch_size), weights, legend = false, title = "Weighted Samples ($(dim) dimensions, $(nbins) bins, $(batch_size) samples)", xlabel = "Sample [i]", ylabel = "Weight [%]")
+            savefig("weights_$(batch_size)_$(dim)_$(el_type).png")
+        end
 
         # == BINNING ==
         bins_buffer = allocate(backend, el_type, (nbins, dim))
         @test isnothing(binning_vegas!(backend, bins_buffer, buffer, grid, normal_distribution))
 
-        println("plotting...")
-        binned = zeros(el_type, nbins, dim)
-        copyto!(binned, bins_buffer)
-        
-        bar(range(0, nbins), binned[:, 1], legend = false, title = "Binning - Samples per Bin", xlabel = "Bin [$nbins]", ylabel = "Amount of samples in this bin [#]")
-        savefig("binning_$(batch_size)_$(dim)_$(el_type).png")
-
-        # TODO: add some sanity checks on the results
-        for d in 1:dim
-            println(bins_buffer[:, d])
+        if plotting
+            println("plotting...")
+            binned = zeros(el_type, nbins, dim)
+            copyto!(binned, bins_buffer)
+            
+            bar(range(0, nbins), binned[:, 1], legend = false, title = "Binning - Samples per Bin ($(dim) dimensions, $(nbins) bins, $(batch_size) samples)", xlabel = "Bin [$nbins]", ylabel = "Amount of samples per bin [#]")
+            
+            savefig("binning_$(batch_size)_$(dim)_$(el_type).png")
         end
-        println(sum(bins_buffer), " / ", batch_size * dim, " = ", sum(bins_buffer) / (batch_size * dim))
+        
+        if sum(bins_buffer) != batch_size * dim
+            println("Error: Number of binned samples doesnt match!")
+            println(sum(bins_buffer), " / ", batch_size * dim, " = ", sum(bins_buffer) / (batch_size * dim))
+            for d in 1:dim
+                println(bins_buffer[:, d])
+            end
+        end
+    
+        # TODO: add some sanity checks on the results
         @assert sum(bins_buffer) == batch_size * dim
     end
 
