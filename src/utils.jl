@@ -18,8 +18,8 @@ end
 For a given distribution `d` and quantile `q`, find `v` such that \$quantile(dist, v) = q\$
 """
 function _find_quantile(dist, q::T; approx = sqrt(eps(T))) where {T <: Number}
-    lo = T(0)
-    hi = T(1)
+    lo = zero(T)
+    hi = one(T)
 
     lo_q = quantile(dist, lo)
     hi_q = quantile(dist, hi)
