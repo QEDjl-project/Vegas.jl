@@ -13,42 +13,9 @@ function _assert_correct_boundaries(
 end
 
 """
-    _find_quantile(dist, q)
-
-For a given distribution `d` and quantile `q`, find `v` such that \$quantile(dist, v) = q\$
-"""
-function _find_quantile(dist, q::T; approx = sqrt(eps(T))) where {T <: Number}
-    lo = zero(T)
-    hi = one(T)
-
-    lo_q = quantile(dist, lo)
-    hi_q = quantile(dist, hi)
-
-    max_runs = Base.significand_bits(T) # number precision bits
-
-    # standard binary search
-    for _ in 1:max_runs
-        v = lo + (hi - lo) / 2
-        v_q = quantile(dist, v)
-
-        if isapprox(v_q, q; rtol = zero(T), atol = approx)
-            break
-        elseif v_q > q
-            hi = v
-            hi_q = v_q
-        else # v_q < q
-            lo = v
-            lo_q = v_q
-        end
-    end
-
-    return lo + (hi - lo) / 2
-end
-
-"""
     _gen_grid(bins, dists::Tuple)
 
-Sets up the D-dimensional grid with the distributions, where dists is a tuple of D distributions that implement the `quantile` function.
+Sets up the D-dimensional grid with the distributions, where dists is a tuple of D distributions that implement the `quantile` and `cdf` functions.
 
 !!! warning
     Currently only works on CPU, the finished grid can be moved to the GPU
@@ -61,11 +28,12 @@ function _gen_grid(bins::AbstractMatrix, dists::Tuple, lo::NTuple{N, T}, hi::NTu
     _assert_correct_boundaries(lo, hi)
 
     for d in 1:ndims
-        lo_q = _find_quantile(dists[d], lo[d])
-        hi_q = _find_quantile(dists[d], hi[d])
+        lo_q = cdf(dists[d], lo[d])
+        hi_q = cdf(dists[d], hi[d])
 
         for n in 1:nbins
-            q = lo_q + ((n - 1) / (nbins - 1)) * (hi_q - lo_q)
+            # need to clamp to 1 (or figure out better precision for this at some point)
+            q = n == nbins ? one(T) : lo_q + ((n - 1) / (nbins - 1)) * (hi_q - lo_q)
             bins[n, d] = quantile(dists[d], q)
         end
     end
