@@ -86,6 +86,7 @@ end
     nbins = Ng - 1
     Ndi = 0
 
+    # TODO: InexactError: trunc(UInt32, 52879244321342) when using too many bins+threads (31^11)
     batch_size = div((nbins ^ D), prod(@ndrange()))
 
     for sample in 1:size(values, 1)
