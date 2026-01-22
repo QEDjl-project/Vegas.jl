@@ -85,17 +85,10 @@ function testsuite_project1(backend, el_type, nbins, dim)
             savefig("binning_$(batch_size)_$(dim)_$(el_type).png")
         end
         
-        # println("bins_buffer:")
-        # for d in 1:dim
-        #     println(bins_buffer[:, d])
-        # end
 
         if sum(ndi_buffer) != batch_size * dim
             println("Error: Amount of binned samples wrong, must have lost some in binning kernel!")
             println(sum(ndi_buffer), " / ", batch_size * dim, " = ", sum(ndi_buffer) / (batch_size * dim))
-            # for d in 1:dim
-            #     println(ndi_buffer[:, d])
-            # end
         end
         @assert sum(ndi_buffer) == batch_size * dim
 

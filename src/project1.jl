@@ -31,13 +31,6 @@ using Atomix: @atomic
 end
 
 function sample_vegas!(backend, buffer::VegasBatchBuffer{T, N, D, V, W, J}, grid::VegasGrid{T, Ng, D, G}, func::Function) where {T <: AbstractFloat, N, D, V, W, J, Ng, G}
-    # write the sampling code here, filling the buffer
-    # you will need a kernel implementation and pass it the raw vectors/matrices
-    # expect the buffer to be allocated, but otherwise uninitialized. the output should be written into it
-    # example kernels like this are in src/grid.jl: @kernel function _fill_uniformly_kernel
-
-    # it's a good idea to add some sanity checks too, like asserting that the buffers exist on the same backend, have matching dimensionalities where applicable, etc.
-
     # buffer.values = N x D
     # grid.target_weights = N
     # grid.jacobians = N
@@ -58,7 +51,6 @@ function sample_vegas!(backend, buffer::VegasBatchBuffer{T, N, D, V, W, J}, grid
     return nothing
 end
 
-# TODO: completely untested, treat as pseudo-code
 @kernel function vegas_binning_kernel!(bins_buffer, ndi_buffer, values, target_weights, grid_lines, func::Function, @Const(Ng), ::Val{D}) where {D}
 
     nbins = Ng - 1
@@ -75,7 +67,13 @@ end
     upper_bound = grid_lines[bin + 1, dim]
 
     for sample in 1:size(values, 1)
-        if lower_bound <= values[sample, dim] < upper_bound
+        in_bin = if bin == nbins
+            lower_bound <= values[sample, dim] <= upper_bound
+        else
+            lower_bound <= values[sample, dim] < upper_bound
+        end
+
+        if in_bin
             ndi += 1
             V = ntuple(d -> (@inbounds values[sample, d]), Val(D))
             bins_buffer[bin, dim] += func(V) ^ 2
