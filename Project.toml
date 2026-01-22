@@ -6,6 +6,7 @@ authors = ["Uwe Hernandez Acosta <u.hernandez@hzdr.de>", "Anton Reinhard"]
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 Atomix = "a9b6321e-bd34-4604-b9c9-b65b8de01458"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 GPUArrays = "0c68f7d7-f131-5f86-a1c3-88cf8149b2d7"
 KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
@@ -16,6 +17,7 @@ QEDevents = "fc3ce04a-5be5-4f3a-acff-eceaab723759"
 QEDprocesses = "46de9c38-1bb3-4547-a1ec-da24d767fdad"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+StatsPlots = "f3b207a7-027a-5e70-b257-86293d7955fd"
 
 [weakdeps]
 AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
@@ -32,6 +34,7 @@ oneAPIExt = "oneAPI"
 [compat]
 Adapt = "4.4.0"
 Atomix = "1.1.2"
+DataFrames = "1.8.1"
 Distributions = "0.25.122"
 GPUArrays = "11.3.1"
 KernelAbstractions = "0.9.39"
@@ -42,6 +45,7 @@ QEDevents = "0.3.1"
 QEDprocesses = "0.5.1"
 Random = "1.10"
 StaticArrays = "1.9.15"
+StatsPlots = "0.15.8"
 julia = "1.10"
 
 [extras]

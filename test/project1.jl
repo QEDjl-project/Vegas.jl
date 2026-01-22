@@ -5,6 +5,8 @@
 
 using Vegas: sample_vegas!, binning_vegas!
 using Plots
+using StatsPlots
+using DataFrames
 
 plotting = true
 
@@ -25,7 +27,7 @@ function testsuite_project1(backend, el_type, nbins, dim)
     
     println("Hello from Maria and Artur :>")
 
-    @testset "batch_size = $batch_size" for batch_size in (2^10, 2^14, 2^18)#, 2^22)
+    @testset "batch_size = $batch_size" for batch_size in (2^10)#, 2^14, 2^18, 2^22)
         buffer = allocate_vegas_batch(backend, el_type, dim, batch_size)
         grid = uniform_vegas_grid(backend, LOWER, UPPER, nbins)
         
@@ -38,8 +40,27 @@ function testsuite_project1(backend, el_type, nbins, dim)
             samples = zeros(el_type, batch_size, dim)
             copyto!(samples, buffer.values)
 
+            df_samples = DataFrame()
+            for d in eachindex(axes(samples, 2))
+                append!(df_samples, DataFrame(
+                    value = samples[:, d],
+                    dimension = "Dim $d"
+                ))
+            end
+
             b_range = range(0, 1, length = nbins)
-            histogram(samples[:,1], bins=b_range, legend = false, title = "Sampling Distribution" * plot_details, xlabel = "Sample range [0:1)", ylabel = "Distribution [#]")
+
+            @df df_samples groupedhist(:value, 
+                group = :dimension,
+                bar_position = :dodge,
+                bins = b_range,
+                legend = :topright,
+                title = "Sampling Distribution" * plot_details,
+                xlabel = "Sample range [0:1)",
+                ylabel = "Distribution [#]",
+                palette = :seaborn_deep)            
+            
+
             savefig("sampling_$(batch_size)_$(dim)_$(el_type).png")
 
             weights = zeros(el_type, batch_size)
