@@ -34,7 +34,7 @@ function testsuite_project2(backend, el_type, nbins, dim)
         # == SCAN ==
         # TODO: implement this `scan_vegas!` call
         avg_d = scan_vegas!(backend, bins_buffer)
-        @test avg_d isa el_type
+        @test eltype(avg_d) == el_type
 
         # == REFINE ==
         # TODO: implement this `refine_vegas!` call
