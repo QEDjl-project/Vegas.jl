@@ -45,3 +45,52 @@ function _check_all_equal(vec, kwargs...)
     @test isapprox(fill(el1, length(vec)), vec, kwargs...)
     return nothing
 end
+
+# needs a plotting library loaded
+function _plot_grid_dimension(bins::AbstractMatrix, d)
+    vec = bins[:, d]
+
+    data_x = vec[1:(end - 1)]
+    data_y = inv.(diff(vec))
+    y_sum = sum(data_y)
+    data_y = data_y ./ y_sum
+
+    return lines(data_x, data_y)
+end
+
+# needs a plotting library loaded
+function _plot_grid(bins::AbstractMatrix)
+    f = Figure()
+
+    (nbins, ndims) = size(bins)
+
+    ax = Axis(f[1, 1])
+
+    plots = []
+    labels = []
+
+    for d in 1:ndims
+        vec = bins[:, d]
+
+        data_x = vec[1:(end - 1)]
+        data_y = inv.(diff(vec))
+        y_sum = sum(data_y)
+        data_y = data_y ./ y_sum
+
+        push!(plots, lines!(f[1, 1], data_x, data_y))
+        push!(labels, "Dimension $d")
+    end
+
+    Legend(
+        f[1, 1],
+        plots,
+        labels;
+        tellheight = false,
+        tellwidth = false,
+        halign = :center,
+        valign = :bottom,
+        orientation = :vertical
+    )
+
+    return f
+end

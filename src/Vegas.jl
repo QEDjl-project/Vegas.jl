@@ -24,7 +24,7 @@ using QEDevents
 using Random
 using KernelAbstractions
 using Adapt
-
+using Distributions
 
 include("utils.jl")
 
