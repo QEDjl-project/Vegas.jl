@@ -141,8 +141,8 @@ function binning_vegas!(backend, bins_buffer::AbstractMatrix{T}, ndi_buffer::Abs
 
     nbins = Ng - 1
 
-    # NOTE: in case your GPU doesnt support @atomic for the selected float, change to true to use unbatched implementation
-    if false
+    # NNOTE: use unbatched implementation in case GPU is too old to support @atomic for the selected float
+    if string(typeof(backend)) == "MetalBackend"
         
         @debug "Calling unbatched binning kernel with $(nbins) bins * $(D) dims = $(nbins * D) threads"
         vegas_binning_kernel!(backend)(bins_buffer, ndi_buffer, buffer.values, grid.nodes, func, Ng, Val(D), ndrange = nbins * D)
