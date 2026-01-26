@@ -33,9 +33,9 @@ function testsuite_project1(backend, el_type, nbins, dim)
         # == SAMPLING ==
         @test isnothing(sample_vegas!(backend, buffer, grid, normal_distribution))
         
-        @debug " ($(dim) dims, $(nbins) bins, $(batch_size) samples)"
         if plotting
             @debug "plotting..."
+            plot_details = " ($(dim) dims, $(nbins) bins, $(batch_size) samples)"
             samples = zeros(el_type, batch_size, dim)
             copyto!(samples, buffer.values)
 
@@ -77,6 +77,7 @@ function testsuite_project1(backend, el_type, nbins, dim)
 
         if plotting
             @debug "plotting..."
+            plot_details = " ($(dim) dims, $(nbins) bins, $(batch_size) samples)"
             binned = zeros(el_type, nbins, dim)
             copyto!(binned, bins_buffer)
             
