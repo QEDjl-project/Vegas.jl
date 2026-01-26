@@ -5,35 +5,30 @@ include("project1.jl")
 include("project2.jl")
 
 function testsuite_run(backend, vec_type, el_type)
-    # @testset "buffer" begin
+    @testset "buffer" begin
         @testset "dim = 1" testsuite_buffer(backend, el_type, 1, 1024)
         @testset "dim = 11" testsuite_buffer(backend, el_type, 11, 1024)
-    # end
+    end
 
-    # @testset "target" begin
+    @testset "target" begin
         @testset "dim = 1" testsuite_target(backend, el_type, 1, 1024)
         @testset "dim = 11" testsuite_target(backend, el_type, 11, 1024)
-    # end
+    end
 
-    # @testset "grid" begin
+    @testset "grid" begin
         @testset "dim = 1" testsuite_grid(backend, el_type, 2^5, 1)
         @testset "dim = 11" testsuite_grid(backend, el_type, 2^5, 11)
-    # end
+    end
 
     @testset "project 1" begin
-        println("Hello from Maria and Artur :>")
-
-        # 2^5 - 1 nbins -> 32 grid lines
-        @testset "dim = 1" testsuite_project1(backend, el_type, 2^5 - 1, 1)
-        @testset "dim = 3" testsuite_project1(backend, el_type, 2^5 - 1, 3)
-        @testset "dim = 11" testsuite_project1(backend, el_type, 2^5 - 1, 11)
+        @testset "dim = 1" testsuite_project1(backend, el_type, 2^5, 1)
         @testset "dim = 11" testsuite_project1(backend, el_type, 2^5, 11)
     end
 
-    # @testset "project 2" begin
-    #     @testset "dim = 1" testsuite_project2(backend, el_type, 2^5, 1)
-    #     @testset "dim = 11" testsuite_project2(backend, el_type, 2^5, 11)
-    # end
+    @testset "project 2" begin
+        @testset "dim = 1" testsuite_project2(backend, el_type, 2^5, 1)
+        @testset "dim = 11" testsuite_project2(backend, el_type, 2^5, 11)
+    end
 
     return nothing
 end

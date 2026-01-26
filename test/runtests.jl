@@ -16,7 +16,7 @@ include("utils.jl")
 SETUPS = TestSetup[]
 
 # check if we test with CPU
-cpu_tests = _is_test_platform_active(["CI_QED_TEST_CPU", "TEST_CPU"], false)
+cpu_tests = _is_test_platform_active(["CI_QED_TEST_CPU", "TEST_CPU"], true)
 if cpu_tests
     push!(SETUPS, get_test_setup(CPU()))
     @info "Testing with CPU backend"

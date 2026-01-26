@@ -11,14 +11,12 @@ DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 GPUArrays = "0c68f7d7-f131-5f86-a1c3-88cf8149b2d7"
 KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
-Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 QEDbase = "10e22c08-3ccb-4172-bfcf-7d7aa3d04d93"
 QEDcore = "35dc0263-cb5f-4c33-a114-1d7f54ab753e"
 QEDevents = "fc3ce04a-5be5-4f3a-acff-eceaab723759"
 QEDprocesses = "46de9c38-1bb3-4547-a1ec-da24d767fdad"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
-StatsPlots = "f3b207a7-027a-5e70-b257-86293d7955fd"
 
 [weakdeps]
 AMDGPU = "21141c5a-9bdb-4563-92ae-f87d6854732e"
@@ -52,9 +50,11 @@ julia = "1.10"
 
 [extras]
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
+Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 SafeTestsets = "1bc83da4-3b8d-516f-aca4-4fe02f6d838f"
+StatsPlots = "f3b207a7-027a-5e70-b257-86293d7955fd"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "SafeTestsets", "Random", "Pkg"]
+test = ["Test", "StatsPlots", "SafeTestsets", "Random", "Plots", "Pkg"]

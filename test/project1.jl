@@ -33,9 +33,9 @@ function testsuite_project1(backend, el_type, nbins, dim)
         # == SAMPLING ==
         @test isnothing(sample_vegas!(backend, buffer, grid, normal_distribution))
         
-        plot_details = " ($(dim) dims, $(nbins) bins, $(batch_size) samples)"
+        @debug " ($(dim) dims, $(nbins) bins, $(batch_size) samples)"
         if plotting
-            println("plotting...")
+            @debug "plotting..."
             samples = zeros(el_type, batch_size, dim)
             copyto!(samples, buffer.values)
 
@@ -76,7 +76,7 @@ function testsuite_project1(backend, el_type, nbins, dim)
         @test isnothing(binning_vegas!(backend, bins_buffer, ndi_buffer, buffer, grid, normal_distribution))
 
         if plotting
-            println("plotting...")
+            @debug "plotting..."
             binned = zeros(el_type, nbins, dim)
             copyto!(binned, bins_buffer)
             
@@ -85,12 +85,7 @@ function testsuite_project1(backend, el_type, nbins, dim)
             savefig("binning_$(batch_size)_$(dim)_$(el_type).png")
         end
         
-
-        if sum(ndi_buffer) != batch_size * dim
-            println("Error: Amount of binned samples wrong, must have lost some in binning kernel!")
-            println(sum(ndi_buffer), " / ", batch_size * dim, " = ", sum(ndi_buffer) / (batch_size * dim))
-        end
-        @assert sum(ndi_buffer) == batch_size * dim
+        @assert sum(ndi_buffer) == batch_size * dim "Amount of binned samples wrong, must have lost some in binning kernel: $(sum(ndi_buffer)) out of $(batch_size * dim)"
 
     end
 
