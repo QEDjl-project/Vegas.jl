@@ -9,7 +9,7 @@ using Atomix: @atomic
     for d in 1:D
         
         # yn = randoms[i, d] * (Ng - 1)         # would be used instead of next line in case of host generated randoms
-        yn = (rand() % 1) * (Ng - 1)           # generate random float in [0:1), scale it to grid
+        yn = (rand(T) % 1) * (Ng - 1)           # generate random float in [0:1), scale it to grid
         yi = unsafe_trunc(Int, yn) + 1          # use its integer part as bin index
         yd = yn + 1 - yi                        # and its fractional part as shift inside the bin
         
@@ -54,13 +54,13 @@ function sample_vegas!(backend, buffer::VegasBatchBuffer{T, N, D, V, W, J}, grid
 end
 
 
-@kernel function vegas_binning_kernel_batched!(bins_buffer::AbstractMatrix{T}, ndi_buffer::AbstractMatrix{Int}, values::AbstractMatrix{T}, grid_lines::AbstractMatrix{T}, func::Function, @Const(Ng), ::Val{D}) where {T<:Number, D}
+@kernel function vegas_binning_kernel_batched!(bins_buffer::AbstractMatrix{T}, ndi_buffer::AbstractMatrix{I}, values::AbstractMatrix{T}, grid_lines::AbstractMatrix{T}, func::Function, @Const(Ng), ::Val{D}) where {T<:Number, I<:Int, D}
 
     bin, dim, batch = @index(Global, NTuple)
     batch -= 1
 
     bin_sum = zero(T)
-    ndi = zero(T)
+    ndi = zero(I)
 
     lower_bound = grid_lines[bin, dim]
     upper_bound = grid_lines[bin + 1, dim]
@@ -95,7 +95,7 @@ end
 
 end
 
-@kernel function vegas_binning_kernel!(bins_buffer::AbstractMatrix{T}, ndi_buffer::AbstractMatrix{Int}, values::AbstractMatrix{T}, grid_lines::AbstractMatrix{T}, func::Function, @Const(Ng), ::Val{D}) where {T<:Number, D}
+@kernel function vegas_binning_kernel!(bins_buffer::AbstractMatrix{T}, ndi_buffer::AbstractMatrix{I}, values::AbstractMatrix{T}, grid_lines::AbstractMatrix{T}, func::Function, @Const(Ng), ::Val{D}) where {T<:Number, I<:Int, D}
 
     nbins = Ng - 1
 
@@ -104,7 +104,7 @@ end
     bin = (i % nbins) + 1
     dim = div(i, nbins) + 1
     
-    ndi = zero(T)
+    ndi = zero(I)
     bins_buffer[bin, dim] = zero(T)
 
     lower_bound = grid_lines[bin, dim]
