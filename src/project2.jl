@@ -1,25 +1,94 @@
 import AcceleratedKernels as AK
 
-@kernel function _vegas_stencil_kernel!(output_buffer::AbstractVecOrMat, @Const(bins_buffer::AbstractVecOrMat), @Const(sums::AbstractMatrix), @Const(alpha::Real))
-    T = promote_type(eltype(bins_buffer), typeof(alpha))
-    bin_idx, dim_idx = @index(Global, NTuple)
+@kernel function _vegas_stencil_kernel!(bins_buffer::AbstractVecOrMat{T}, @Const(sums::AbstractMatrix), @Const(alpha::Real)) where {T <: Number}
+    (loc_bin, loc_dim) = @index(Local, NTuple)
+    (glob_bin, glob_dim) = @index(Global, NTuple)
 
-    # smoothing
-    @inbounds smoothed = if bin_idx == firstindex(bins_buffer, 1)
-        (T(7) * bins_buffer[bin_idx, dim_idx] + bins_buffer[nextind(bins_buffer, bin_idx), dim_idx]) / T(8)
-    elseif bin_idx == lastindex(bins_buffer, 1)
-        (T(7) * bins_buffer[bin_idx, dim_idx] + bins_buffer[prevind(bins_buffer, bin_idx), dim_idx]) / T(8)
-    else
-        (T(6) * bins_buffer[bin_idx, dim_idx] + bins_buffer[prevind(bins_buffer, bin_idx), dim_idx] + bins_buffer[nextind(bins_buffer, bin_idx), dim_idx]) / T(8)
+    # loc_bin and glob_bin must be identical or the started block wasn't large enough!
+    @assert loc_bin == glob_bin
+
+    # loc_dim should be 1, 1 dimension is handled by one block
+    @assert loc_dim == 1
+
+    local_buffer = @localmem T size(bins_buffer, 1)
+
+    # load into localmem
+    @inbounds local_buffer[loc_bin] = bins_buffer[glob_bin, glob_dim]
+
+    # sync
+    @synchronize
+
+    dim_sum = @inbounds sums[begin, glob_dim]
+
+    # load middle value, and conditionally l and r
+    # TODO: could probably be improved by using more threads to append the border values left and right and remove this condition
+    m = local_buffer[loc_bin]
+    l = loc_bin == 1 ? m : local_buffer[loc_bin - 1]
+    r = loc_bin == size(bins_buffer, 1) ? m : local_buffer[loc_bin + 1]
+
+    # calculate new value and write back
+    bins_buffer[glob_bin, glob_dim] = _vegas_stencil(l, m, r, dim_sum, alpha)
+end
+#=
+@kernel function _vegas_stencil_kernel!(bins_buffer::AbstractVecOrMat, @Const(sums::AbstractMatrix), @Const(alpha::Real))
+    first_bin = firstindex(bins_buffer, 1)
+    last_bin = lastindex(bins_buffer, 1)
+    local_bin = @index(Local, Linear)
+    dim = @index(Group, Linear)
+    dim_sum = @inbounds sums[begin, dim]
+
+    # use local memory to reduce loads from global memory
+    @uniform batch_size = prod(@groupsize())
+    local_buffer = @localmem eltype(bins_buffer) (batch_size + 2)
+
+    # keep last middle value to prevent loading modified data from global memory
+    @private middle_value = @inbounds bins_buffer[begin, dim]
+    for starting_bin in first_bin:batch_size:last_bin
+        # load new batch from global memory into local memory
+        @private global_index = starting_bin + local_bin - Int32(1)
+        @private local_index = firstindex(local_buffer) + local_bin
+
+        # load left and right value of boundary threads
+        if local_bin == batch_size
+            @inbounds local_buffer[begin] = middle_value
+            @inbounds local_buffer[end] = _vegas_stencil_get_value(bins_buffer, nextind(bins_buffer, global_index), dim)
+        end
+
+        # load middle value
+        @private middle_value = _vegas_stencil_get_value(bins_buffer, global_index, dim)
+        @inbounds local_buffer[local_index] = middle_value
+
+        # wait until data in local buffer is ready
+        @synchronize()
+
+        if first_bin <= global_index <= last_bin
+            # load left and right values
+            left_value = @inbounds local_buffer[prevind(local_buffer, local_index)]
+            right_value = @inbounds local_buffer[nextind(local_buffer, local_index)]
+
+            # execute stencil and write result to global memory
+            result = _vegas_stencil(left_value, middle_value, right_value, dim_sum, alpha)
+            @inbounds bins_buffer[global_index, dim] = result
+        end
+
+        # wait until data in local buffer is no longer needed
+        @synchronize()
     end
+end
+=#
 
-    # normalization
-    normalized = smoothed / @inbounds sums[begin, dim_idx]
+function _vegas_stencil_get_value(bins_buffer::AbstractVecOrMat, bin::Integer, dim::Integer)
+    first_bin = firstindex(bins_buffer, 1)
+    last_bin = lastindex(bins_buffer, 1)
+    return @inbounds bins_buffer[clamp(bin, first_bin, last_bin), dim]
+end
 
-    # compression
+function _vegas_stencil(left, middle, right, sum, alpha::Real)
+    T = promote_type(typeof(middle), typeof(alpha))
+    smoothed = (left + T(6) * middle + right) / T(8)
+    normalized = smoothed / sum
     compressed = ((one(T) - normalized) / (log(inv(normalized))))^alpha
-
-    @inbounds output_buffer[bin_idx, dim_idx] = compressed
+    return compressed
 end
 
 function stencil_vegas!(backend, bins_buffer::AbstractVecOrMat, alpha::Real)
@@ -27,18 +96,13 @@ function stencil_vegas!(backend, bins_buffer::AbstractVecOrMat, alpha::Real)
         throw(ArgumentError("buffer does not belong to the passed backend"))
     end
 
-    bins = size(bins_buffer, 1)
-    dims = size(bins_buffer, 2)
-    if bins < 2
-        throw(ArgumentError("less than two bins specified"))
-    end
-
+    (no_bins, dims) = size(bins_buffer)
     sums = allocate(backend, eltype(bins_buffer), (1, dims))
-    output_buffer = allocate(backend, eltype(bins_buffer), size(bins_buffer))
 
     sum!(sums, bins_buffer)                 # uses GPU implementation
-    _vegas_stencil_kernel!(backend)(output_buffer, bins_buffer, sums, alpha, ndrange = (bins, dims))
-    copyto!(bins_buffer, output_buffer)     # uses GPU implementation
+    kernel_size = (no_bins, 1)
+    problem_size = (no_bins, dims)
+    _vegas_stencil_kernel!(backend, kernel_size)(bins_buffer, sums, alpha, ndrange = problem_size)
     return nothing
 end
 
