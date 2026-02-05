@@ -78,7 +78,7 @@ if oneapi_tests
     using oneAPI
 
     if oneAPI.functional()
-        push!(SETUPS, get_test_setup(oneAPIBackend()))
+        push!(SETUPS, get_test_setup(oneAPIBackend(; always_inline = true)))
         @info "Testing with oneAPI backend"
     else
         @error "oneAPI backend is not functional (oneAPI.functional() == false)"

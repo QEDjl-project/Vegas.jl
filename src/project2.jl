@@ -103,7 +103,7 @@ end
     k = Int32(((tid - 1) ÷ D) + 1)     # internal node; 1..N-1
     i = k + Int32(1)                   # New node number; 2..N
 
-    target = float(k) * avg_d[d]
+    target = eltype(new_nodes)(k) * avg_d[d]
 
     # binary search in prefix[:, d] for smallest j such that prefix[j,d] >= goal
     lo = Int32(1)
