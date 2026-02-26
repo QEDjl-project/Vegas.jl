@@ -4,13 +4,16 @@ import AcceleratedKernels as AK
     (loc_bin, loc_dim) = @index(Local, NTuple)
     (glob_bin, glob_dim) = @index(Global, NTuple)
 
+    # commented out checks cause GPU doesn't like asserts, but keep it here as documentation
+
     # loc_bin and glob_bin must be identical or the started block wasn't large enough!
-    @assert loc_bin == glob_bin
+    #@assert loc_bin == glob_bin
 
     # loc_dim should be 1, 1 dimension is handled by one block
-    @assert loc_dim == 1
+    #@assert loc_dim == 1
 
-    local_buffer = @localmem T size(bins_buffer, 1)
+    (no_bins, _) = @uniform @groupsize()
+    local_buffer = @localmem T no_bins
 
     # load into localmem
     @inbounds local_buffer[loc_bin] = bins_buffer[glob_bin, glob_dim]
