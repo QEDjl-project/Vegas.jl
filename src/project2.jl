@@ -1,6 +1,6 @@
 import AcceleratedKernels as AK
 
-@kernel function _vegas_stencil_kernel!(bins_buffer::AbstractVecOrMat{T}, @Const(sums::AbstractMatrix), @Const(alpha::Real)) where {T <: Number}
+@kernel function _vegas_stencil_kernel!(bins_buffer::AbstractVecOrMat{T}, @Const(sums::AbstractMatrix{T}), @Const(alpha::T)) where {T <: Number}
     (loc_bin, loc_dim) = @index(Local, NTuple)
     (glob_bin, glob_dim) = @index(Global, NTuple)
 
@@ -33,21 +33,14 @@ import AcceleratedKernels as AK
     bins_buffer[glob_bin, glob_dim] = _vegas_stencil(l, m, r, dim_sum, alpha)
 end
 
-function _vegas_stencil_get_value(bins_buffer::AbstractVecOrMat, bin::Integer, dim::Integer)
-    first_bin = firstindex(bins_buffer, 1)
-    last_bin = lastindex(bins_buffer, 1)
-    return @inbounds bins_buffer[clamp(bin, first_bin, last_bin), dim]
-end
-
-function _vegas_stencil(left, middle, right, sum, alpha::Real)
-    T = promote_type(typeof(middle), typeof(alpha))
-    smoothed = (left + T(6) * middle + right) / T(8)
+function _vegas_stencil(left::T, middle::T, right::T, sum::T, alpha::T) where {T <: Number}
+    smoothed = (left + 6 * middle + right) / 8
     normalized = smoothed / sum
     compressed = ((one(T) - normalized) / (log(inv(normalized))))^alpha
     return compressed
 end
 
-function stencil_vegas!(backend, bins_buffer::AbstractVecOrMat, alpha::Real)
+function stencil_vegas!(backend, bins_buffer::AbstractVecOrMat{T}, alpha::Number) where {T <: Number}
     if typeof(get_backend(bins_buffer)) != typeof(backend)
         throw(ArgumentError("buffer does not belong to the passed backend"))
     end
@@ -58,7 +51,7 @@ function stencil_vegas!(backend, bins_buffer::AbstractVecOrMat, alpha::Real)
     sum!(sums, bins_buffer)                 # uses GPU implementation
     kernel_size = (no_bins, 1)
     problem_size = (no_bins, dims)
-    _vegas_stencil_kernel!(backend, kernel_size)(bins_buffer, sums, alpha, ndrange = problem_size)
+    _vegas_stencil_kernel!(backend, kernel_size)(bins_buffer, sums, T(alpha), ndrange = problem_size)
     return nothing
 end
 
