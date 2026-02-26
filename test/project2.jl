@@ -28,11 +28,9 @@ function testsuite_project2(backend, el_type, nbins, dim)
         copyto!(bins_buffer, cpu_bins_buffer)
 
         # == STENCIL + COMPRESSION ==
-        # TODO: implement this `stencil_vegas!` call
         @test isnothing(stencil_vegas!(backend, bins_buffer, ALPHA))
 
         # == SCAN ==
-        # TODO: implement this `scan_vegas!` call
         avg_d = scan_vegas!(backend, bins_buffer)
         @test avg_d isa AbstractVector
         @test length(avg_d) == dim
@@ -40,7 +38,6 @@ function testsuite_project2(backend, el_type, nbins, dim)
 
 
         # == REFINE ==
-        # TODO: implement this `refine_vegas!` call
         @test isnothing(refine_vegas!(backend, grid, bins_buffer, avg_d))
 
         # TODO: add some sanity checks on the results
