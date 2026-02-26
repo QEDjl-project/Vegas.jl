@@ -32,53 +32,6 @@ import AcceleratedKernels as AK
     # calculate new value and write back
     bins_buffer[glob_bin, glob_dim] = _vegas_stencil(l, m, r, dim_sum, alpha)
 end
-#=
-@kernel function _vegas_stencil_kernel!(bins_buffer::AbstractVecOrMat, @Const(sums::AbstractMatrix), @Const(alpha::Real))
-    first_bin = firstindex(bins_buffer, 1)
-    last_bin = lastindex(bins_buffer, 1)
-    local_bin = @index(Local, Linear)
-    dim = @index(Group, Linear)
-    dim_sum = @inbounds sums[begin, dim]
-
-    # use local memory to reduce loads from global memory
-    @uniform batch_size = prod(@groupsize())
-    local_buffer = @localmem eltype(bins_buffer) (batch_size + 2)
-
-    # keep last middle value to prevent loading modified data from global memory
-    @private middle_value = @inbounds bins_buffer[begin, dim]
-    for starting_bin in first_bin:batch_size:last_bin
-        # load new batch from global memory into local memory
-        @private global_index = starting_bin + local_bin - Int32(1)
-        @private local_index = firstindex(local_buffer) + local_bin
-
-        # load left and right value of boundary threads
-        if local_bin == batch_size
-            @inbounds local_buffer[begin] = middle_value
-            @inbounds local_buffer[end] = _vegas_stencil_get_value(bins_buffer, nextind(bins_buffer, global_index), dim)
-        end
-
-        # load middle value
-        @private middle_value = _vegas_stencil_get_value(bins_buffer, global_index, dim)
-        @inbounds local_buffer[local_index] = middle_value
-
-        # wait until data in local buffer is ready
-        @synchronize()
-
-        if first_bin <= global_index <= last_bin
-            # load left and right values
-            left_value = @inbounds local_buffer[prevind(local_buffer, local_index)]
-            right_value = @inbounds local_buffer[nextind(local_buffer, local_index)]
-
-            # execute stencil and write result to global memory
-            result = _vegas_stencil(left_value, middle_value, right_value, dim_sum, alpha)
-            @inbounds bins_buffer[global_index, dim] = result
-        end
-
-        # wait until data in local buffer is no longer needed
-        @synchronize()
-    end
-end
-=#
 
 function _vegas_stencil_get_value(bins_buffer::AbstractVecOrMat, bin::Integer, dim::Integer)
     first_bin = firstindex(bins_buffer, 1)
