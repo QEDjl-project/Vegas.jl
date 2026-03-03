@@ -12,7 +12,6 @@ using Vegas.TestUtils
 
 include("utils.jl")
 
-
 SETUPS = TestSetup[]
 
 # check if we test with CPU
@@ -119,11 +118,9 @@ if isempty(SETUPS)
     return nothing
 end
 
-
 include("testsuite.jl")
 
 for stp in SETUPS
-
     CPU() in stp.backend ? test_deprecated() : nothing
 
     @testset "$backend $vec_type $el_type" for (backend, vec_type, el_type) in combinations(stp)

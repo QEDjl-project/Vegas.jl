@@ -1,5 +1,3 @@
-# test suite for project 2
-#
 # NOTE: packages/modules already loaded:
 # Pkg, Test, SafeTestsets, Random, GPUArrays, KernelAbstractions, StaticArrays, Vegas, Vegas.TestUtils
 

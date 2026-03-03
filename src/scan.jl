@@ -24,19 +24,19 @@ function scan_vegas!(backend, bins_buffer::AbstractVecOrMat)
     D = Int32(size(A, 2))
     # 1) Inclusive scan per column (in-place) using AcceleratedKernels
     #    dims=1 means scanning along the first dimension (column-wise)
-    AK.accumulate!(+, A, A; dims=1, init=zero(T))
+    AK.accumulate!(+, A, A; dims = 1, init = zero(T))
 
     # 2) Get the last value of each column
     lastvals = similar(A, T, (Int(D),))
     kernel_last = _get_last_col!(backend)
-    kernel_last(lastvals, A, N, D; ndrange=Int(D))
+    kernel_last(lastvals, A, N, D; ndrange = Int(D))
     KernelAbstractions.synchronize(backend)
 
     # 3) Compute avg_d = lastvals / N
     avg_d = similar(A, T, (Int(D),))
     invN = T(1) / T(N)
     kernel_scale = _scale_by_invN!(backend)
-    kernel_scale(avg_d, lastvals, invN, D; ndrange=Int(D))
+    kernel_scale(avg_d, lastvals, invN, D; ndrange = Int(D))
     KernelAbstractions.synchronize(backend)
 
     return avg_d

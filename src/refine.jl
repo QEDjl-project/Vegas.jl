@@ -8,8 +8,8 @@ end
 
 # refine internal nodes using prefix array (bins_buffer) and avg_d per dimension
 @kernel function _refine_nodes_bs!(
-    new_nodes, old_nodes, prefix, avg_d, N::Int32, D::Int32
-)
+        new_nodes, old_nodes, prefix, avg_d, N::Int32, D::Int32
+    )
     tid = @index(Global)
 
     #decode(k,d)
@@ -32,12 +32,12 @@ end
     end
     j = Int32(lo)
 
-    prev = j == 1 ? zero(eltype(prefix)) : prefix[j-1, d]
+    prev = j == 1 ? zero(eltype(prefix)) : prefix[j - 1, d]
     dj = prefix[j, d] - prev
     t = (target - prev) / dj
 
     x0 = old_nodes[j, d]
-    x1 = old_nodes[j+1, d]
+    x1 = old_nodes[j + 1, d]
     new_nodes[i, d] = x0 + t * (x1 - x0)
 
 end
@@ -54,10 +54,10 @@ function refine_vegas!(backend, grid::VegasGrid, bins_buffer::AbstractVecOrMat, 
     D = Int32(size(bins_buffer, 2))      # dim
     Np1 = Int32(size(old_nodes, 1))      # N+1
 
-    _copy_bounds_nodes!(backend)(new_nodes, old_nodes, Np1, D; ndrange=Int(D))
+    _copy_bounds_nodes!(backend)(new_nodes, old_nodes, Np1, D; ndrange = Int(D))
 
     total = Int((N - Int32(1)) * D)
-    _refine_nodes_bs!(backend)(new_nodes, old_nodes, bins_buffer, avg_d, N, D; ndrange=total)
+    _refine_nodes_bs!(backend)(new_nodes, old_nodes, bins_buffer, avg_d, N, D; ndrange = total)
 
     KernelAbstractions.synchronize(backend)
     copyto!(old_nodes, new_nodes)

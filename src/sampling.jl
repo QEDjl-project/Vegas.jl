@@ -1,12 +1,12 @@
 @kernel function vegas_sampling_kernel!(
-    values::AbstractMatrix{T},
-    target_weights::AbstractVector{T},
-    jacobians::AbstractVector{T},
-    grid_lines::AbstractMatrix{T},
-    func::Function,
-    @Const(Ng),
-    d::Val{D}
-) where {T<:Number,D}
+        values::AbstractMatrix{T},
+        target_weights::AbstractVector{T},
+        jacobians::AbstractVector{T},
+        grid_lines::AbstractMatrix{T},
+        func::Function,
+        @Const(Ng),
+        d::Val{D}
+    ) where {T <: Number, D}
     i::Int32 = @index(Global)
 
     jac = one(T)
@@ -18,7 +18,7 @@
         yd = yn + one(Int32) - yi
 
         x_start = grid_lines[yi, d]
-        x_end = grid_lines[yi+one(Int32), d]
+        x_end = grid_lines[yi + one(Int32), d]
         width = x_end - x_start
 
         # transform sample value to grid
@@ -36,11 +36,11 @@
 end
 
 function sample_vegas!(
-    backend,
-    buffer::VegasBatchBuffer{T,N,D,V,W,J},
-    grid::VegasGrid{T,Ng,D,G},
-    func::Function
-) where {T<:AbstractFloat,N,D,V,W,J,Ng,G}
+        backend,
+        buffer::VegasBatchBuffer{T, N, D, V, W, J},
+        grid::VegasGrid{T, Ng, D, G},
+        func::Function
+    ) where {T <: AbstractFloat, N, D, V, W, J, Ng, G}
     # buffer.values = N x D
     # grid.target_weights = N
     # grid.jacobians = N
@@ -60,7 +60,7 @@ function sample_vegas!(
         func,
         Ng,
         Val(D),
-        ndrange=N
+        ndrange = N
     )
 
     synchronize(backend)

@@ -1,15 +1,15 @@
 using Atomix: @atomic
 
 @kernel function vegas_binning_kernel_batched2!(
-    bins_buffer::AbstractMatrix{T}, # out
-    ndi_buffer::AbstractMatrix{I},  # out
-    values::AbstractMatrix{T},      # in
-    grid_lines::AbstractMatrix{T},  # in
-    func::Function,
-    @Const(batch_size::Int32),
-    @Const(Ng),
-    ::Val{D}
-) where {T<:Number,I<:Integer,D}
+        bins_buffer::AbstractMatrix{T}, # out
+        ndi_buffer::AbstractMatrix{I},  # out
+        values::AbstractMatrix{T},      # in
+        grid_lines::AbstractMatrix{T},  # in
+        func::Function,
+        @Const(batch_size::Int32),
+        @Const(Ng),
+        ::Val{D}
+    ) where {T <: Number, I <: Integer, D}
     # block dim 1 -> bin number including dimension
     # block dim 2 -> batch number
 
@@ -34,7 +34,7 @@ using Atomix: @atomic
     # bin_lo, bin_hi -> for this thread local bin/dimension, store the bin limits we care about
     # TODO: limits?
     bin_lo = @inbounds grid_lines[local_S, local_D]
-    bin_hi = @inbounds grid_lines[local_S+1, local_D]
+    bin_hi = @inbounds grid_lines[local_S + 1, local_D]
 
     local_sum = zero(T)
     local_ndi = zero(I)
@@ -61,14 +61,14 @@ using Atomix: @atomic
 end
 
 @kernel function vegas_binning_kernel_batched!(
-    bins_buffer::AbstractMatrix{T},
-    ndi_buffer::AbstractMatrix{I},
-    values::AbstractMatrix{T},
-    grid_lines::AbstractMatrix{T},
-    func::Function,
-    @Const(Ng),
-    ::Val{D}
-) where {T<:Number,I<:Integer,D}
+        bins_buffer::AbstractMatrix{T},
+        ndi_buffer::AbstractMatrix{I},
+        values::AbstractMatrix{T},
+        grid_lines::AbstractMatrix{T},
+        func::Function,
+        @Const(Ng),
+        ::Val{D}
+    ) where {T <: Number, I <: Integer, D}
     bin::Int32, dim::Int32, batch::Int32 = @index(Global, NTuple)
     batch -= one(Int32)
 
@@ -76,7 +76,7 @@ end
     ndi = zero(I)
 
     lower_bound = grid_lines[bin, dim]
-    upper_bound = grid_lines[bin+one(Int32), dim]
+    upper_bound = grid_lines[bin + one(Int32), dim]
 
     threads_per_bin = @ndrange()[Int32(3)]
     batch_size = div(size(values, one(Int32)), threads_per_bin)
@@ -97,7 +97,7 @@ end
     # could happen that for our batch no samples fall into the bin
     if ndi != zero(Int32)
         # jacobian is the same for all samples in this bin/dim, so no need to sum it up
-        jac = Ng * (grid_lines[bin+one(Int32), dim] - grid_lines[bin, dim])
+        jac = Ng * (grid_lines[bin + one(Int32), dim] - grid_lines[bin, dim])
         @atomic bins_buffer[bin, dim] += (jac^2) / ndi * bin_sum / threads_per_bin
 
         # used for sanity check that all samples are binned and none is lost
@@ -106,14 +106,14 @@ end
 end
 
 @kernel function vegas_binning_kernel!(
-    bins_buffer::AbstractMatrix{T},
-    ndi_buffer::AbstractMatrix{I},
-    values::AbstractMatrix{T},
-    grid_lines::AbstractMatrix{T},
-    func::Function,
-    @Const(Ng),
-    ::Val{D}
-) where {T<:Number,I<:Integer,D}
+        bins_buffer::AbstractMatrix{T},
+        ndi_buffer::AbstractMatrix{I},
+        values::AbstractMatrix{T},
+        grid_lines::AbstractMatrix{T},
+        func::Function,
+        @Const(Ng),
+        ::Val{D}
+    ) where {T <: Number, I <: Integer, D}
     nbins::Int32 = Ng - one(Int32)
 
     # this is why we cant have nice things
@@ -125,7 +125,7 @@ end
     bins_buffer[bin, dim] = zero(T)
 
     lower_bound = grid_lines[bin, dim]
-    upper_bound = grid_lines[bin+one(Int32), dim]
+    upper_bound = grid_lines[bin + one(Int32), dim]
 
     is_last_bin = bin == Ng - one(Int32)
 
@@ -139,7 +139,7 @@ end
     end
 
     # jacobian is the same for all samples in this bin/dim, so no need to sum it up
-    jac = Ng * (grid_lines[bin+one(Int32), dim] - grid_lines[bin, dim])
+    jac = Ng * (grid_lines[bin + one(Int32), dim] - grid_lines[bin, dim])
 
     bins_buffer[bin, dim] *= (jac^2) / ndi
 
@@ -148,14 +148,14 @@ end
 end
 
 function binning_vegas!(
-    backend,
-    bins_buffer::AbstractMatrix{T},
-    ndi_buffer::AbstractMatrix{I},
-    buffer::VegasBatchBuffer{T,N,D,V,W,J},
-    grid::VegasGrid{T,Ng,D,G},
-    func::Function,
-    threads_per_bin::Int=1024
-) where {T<:AbstractFloat,I<:Integer,N,D,V,W,J,Ng,G}
+        backend,
+        bins_buffer::AbstractMatrix{T},
+        ndi_buffer::AbstractMatrix{I},
+        buffer::VegasBatchBuffer{T, N, D, V, W, J},
+        grid::VegasGrid{T, Ng, D, G},
+        func::Function,
+        threads_per_bin::Int = 1024
+    ) where {T <: AbstractFloat, I <: Integer, N, D, V, W, J, Ng, G}
     # bins_buffer = Ng-1 x D
     # buffer.values = N x D
     # grid.jacobians = N
@@ -174,7 +174,7 @@ function binning_vegas!(
             func,
             Ng,
             Val(Int32(D)),
-            ndrange=Int32(nbins) * Int32(D)
+            ndrange = Int32(nbins) * Int32(D)
         )
     else
         # need to be zeroed because every thread just adds its calculation
@@ -191,7 +191,7 @@ function binning_vegas!(
             func,
             Ng,
             Val(D),
-            ndrange=(Int32(nbins), Int32(D), Int32(threads_per_bin))
+            ndrange = (Int32(nbins), Int32(D), Int32(threads_per_bin))
         )
     end
 
