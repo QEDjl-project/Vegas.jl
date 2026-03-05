@@ -1,7 +1,8 @@
 include("buffer.jl")
 include("target.jl")
 include("grid.jl")
-include("project1.jl")
+include("sampling.jl")
+include("binning.jl")
 include("project2.jl")
 
 function testsuite_run(backend, vec_type, el_type)
@@ -20,9 +21,14 @@ function testsuite_run(backend, vec_type, el_type)
         @testset "dim = 11" testsuite_grid(backend, el_type, 2^5, 11)
     end
 
-    @testset "project 1" begin
-        @testset "dim = 1" testsuite_project1(backend, el_type, 2^5, 1)
-        @testset "dim = 11" testsuite_project1(backend, el_type, 2^5, 11)
+    @testset "sampling" begin
+        @testset "dim = 1" testsuite_sampling(backend, el_type, 2^5, 1)
+        @testset "dim = 11" testsuite_sampling(backend, el_type, 2^5, 11)
+    end
+
+    @testset "binning" begin
+        @testset "dim = 1" testsuite_binning(backend, el_type, 2^5, 1)
+        @testset "dim = 11" testsuite_binning(backend, el_type, 2^5, 11)
     end
 
     @testset "project 2" begin

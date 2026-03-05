@@ -1,68 +1,64 @@
 using Atomix: @atomic
 
-@kernel function vegas_sampling_kernel!(
-        values::AbstractMatrix{T},
-        target_weights::AbstractVector{T},
-        jacobians::AbstractVector{T},
-        grid_lines::AbstractMatrix{T},
+@kernel function vegas_binning_kernel_batched2!(
+        bins_buffer::AbstractMatrix{T}, # out
+        ndi_buffer::AbstractMatrix{I},  # out
+        values::AbstractMatrix{T},      # in
+        grid_lines::AbstractMatrix{T},  # in
         func::Function,
+        @Const(batch_size::Int32),
         @Const(Ng),
-        d::Val{D}
-    ) where {T <: Number, D}
-    i::Int32 = @index(Global)
+        ::Val{D}
+    ) where {T <: Number, I <: Integer, D}
+    # block dim 1 -> bin number including dimension
+    # block dim 2 -> batch number
 
-    jac = one(T)
+    block_dim_1 = @groupsize()
+    (no_bins, _) = size(bins_buffer)
+    n_vals = size(values, 1)
 
-    for d in one(Int32):D
+    # step 1 get indices ->
+    combined_bin_idx = @index(Global, Ntuple)[1]
+    # local_D = dimension the bin cares about
+    local_D = (combined_bin_idx - one(Int32)) ÷ no_bins + one(Int32)
+    # local_S = bin number the bin cares about
+    local_S = (combined_bin_idx - one(Int32)) % no_bins + one(Int32)
 
-        # yn = randoms[i, d] * (Ng - 1)         # would be used instead of next line in case of host generated randoms
-        yn = (rand(T) % one(Int32)) * (Ng - one(Int32))  # generate random float in [0:1), scale it to grid
-        yi = unsafe_trunc(Int, yn) + one(Int32)          # use its integer part as bin index
-        yd = yn + one(Int32) - yi               # and its fractional part as shift inside the bin
+    # range of samples the thread (and the whole block) cares about -> block idx * batch_size to block idx + 1 * batch_size - 1
+    batch_idx_lo = (@index(Global, NTuple)[2] - one(Int32)) * batch_size + one(Int32)
+    batch_idx_hi = batch_idx_lo + batch_size - one(Int32)
+    batch_idx_hi = min(n_vals, batch_idx_hi)
 
-        x_start = grid_lines[yi, d]
-        x_end = grid_lines[yi + one(Int32), d]
-        width = x_end - x_start
+    # step 2
+    # load local values
+    # bin_lo, bin_hi -> for this thread local bin/dimension, store the bin limits we care about
+    # TODO: limits?
+    bin_lo = @inbounds grid_lines[local_S, local_D]
+    bin_hi = @inbounds grid_lines[local_S + 1, local_D]
 
-        values[i, d] = x_start + width * yd     # transform sample value to grid
-        jac *= Ng * width                       # TODO: is this correct?
+    local_sum = zero(T)
+    local_ndi = zero(I)
 
+    # step 3
+    # scan the values for samples falling into this bin
+    for i in batch_idx_lo:batch_idx_hi
+        sample = @inbounds values[i, local_D]
+        V = ntuple(d -> (@inbounds values[sample, Int32(d)]), Val(D))
+        local_sum += func(V)^2
+        local_ndi += one(Int32)
     end
 
-    jacobians[i] = jac
+    # step 4
+    # write back
+    if !iszero(local_ndi)
+        # jacobian is the same for all samples in this bin/dim, so no need to sum it up
+        jac = Ng * (bin_hi - bin_lo)
+        @atomic bins_buffer[bin, dim] += (jac^2) / local_ndi * bin_sum / threads_per_bin
 
-    # Workaround by Anton to be able to call function func on sample
-    V = ntuple(d -> (@inbounds values[i, Int32(d)]), Val(D))
-    target_weights[i] = jac * func(V)
+        # used for sanity check that all samples are binned and none is lost
+        @atomic ndi_buffer[bin, dim] += local_ndi
+    end
 end
-
-function sample_vegas!(
-        backend,
-        buffer::VegasBatchBuffer{T, N, D, V, W, J},
-        grid::VegasGrid{T, Ng, D, G},
-        func::Function
-    ) where {T <: AbstractFloat, N, D, V, W, J, Ng, G}
-    # buffer.values = N x D
-    # grid.target_weights = N
-    # grid.jacobians = N
-    # grid.nodes = Ng x D
-
-    # CUDABackend() != CUDABackend(prefer_blocks = true)
-    @assert typeof(get_backend(buffer)) == typeof(get_backend(grid)) == typeof(backend)
-    @assert size(buffer.values, 2) == ndims(grid)
-    @assert prod(size(buffer.values)) == N * D
-
-    # TODO: enables oneAPI, breaks AMDGPU (._.)
-    # randoms = rand!(allocate(backend, T, (N, D)))
-
-    @debug "Calling sampling kernel with $(Ng - 1) bins, $(D) dims and $(N) samples = $N threads"
-    vegas_sampling_kernel!(backend)(buffer.values, buffer.target_weights, buffer.jacobians, grid.nodes, func, Ng, Val(D), ndrange = N)
-
-    synchronize(backend)
-
-    return nothing
-end
-
 
 @kernel function vegas_binning_kernel_batched!(
         bins_buffer::AbstractMatrix{T},
@@ -134,7 +130,6 @@ end
     is_last_bin = bin == Ng - one(Int32)
 
     for sample in one(Int32):size(values, one(Int32))
-
         # TODO: with high sample counts some samples fall _on_ the last grid line, despite random sampling excludes 1
         if lower_bound <= values[sample, dim] < upper_bound || (is_last_bin && values[sample, dim] == upper_bound)
             ndi += one(Int32)
@@ -148,9 +143,9 @@ end
 
     bins_buffer[bin, dim] *= (jac^2) / ndi
 
-    ndi_buffer[bin, dim] = ndi  # used for sanity check that all samples are binned and none is lost
+    # used for sanity check that all samples are binned and none is lost
+    ndi_buffer[bin, dim] = ndi
 end
-
 
 function binning_vegas!(
         backend,
@@ -168,19 +163,36 @@ function binning_vegas!(
 
     nbins = Ng - 1
 
-    # NOTE: use unbatched implementation in case GPU is too old to support @atomic for the selected float
+    # NOTE: use unbatched implementation in case GPU does not support @atomic for the selected float
     if string(typeof(backend)) == "MetalBackend"
         @debug "Calling unbatched binning kernel with $(nbins) bins * $(D) dims = $(nbins * D) threads"
-        vegas_binning_kernel!(backend)(bins_buffer, ndi_buffer, buffer.values, grid.nodes, func, Ng, Val(Int32(D)), ndrange = Int32(nbins) * Int32(D))
+        vegas_binning_kernel!(backend)(
+            bins_buffer,
+            ndi_buffer,
+            buffer.values,
+            grid.nodes,
+            func,
+            Ng,
+            Val(Int32(D)),
+            ndrange = Int32(nbins) * Int32(D)
+        )
     else
-
         # need to be zeroed because every thread just adds its calculation
         fill!(bins_buffer, zero(T))
         fill!(ndi_buffer, zero(T))
 
         @debug "Calling batched binning kernel with $(nbins) bins * $(D) dims * $(threads_per_bin) threads/bin = $(nbins * D * threads_per_bin) threads"
 
-        vegas_binning_kernel_batched!(backend)(bins_buffer, ndi_buffer, buffer.values, grid.nodes, func, Ng, Val(D), ndrange = (Int32(nbins), Int32(D), Int32(threads_per_bin)))
+        vegas_binning_kernel_batched!(backend)(
+            bins_buffer,
+            ndi_buffer,
+            buffer.values,
+            grid.nodes,
+            func,
+            Ng,
+            Val(D),
+            ndrange = (Int32(nbins), Int32(D), Int32(threads_per_bin))
+        )
     end
 
     synchronize(backend)
