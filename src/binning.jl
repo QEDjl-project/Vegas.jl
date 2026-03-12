@@ -67,8 +67,9 @@ end
         grid_lines::AbstractMatrix{T},
         func::Function,
         @Const(Ng),
-        ::Val{D}
-    ) where {T <: Number, I <: Integer, D}
+        ::Val{D},
+        ::Val{batch_size}
+    ) where {T <: Number, I <: Integer, D, batch_size}
     bin::Int32, dim::Int32, batch::Int32 = @index(Global, NTuple)
     batch -= one(Int32)
 
@@ -79,7 +80,6 @@ end
     upper_bound = grid_lines[bin + one(Int32), dim]
 
     threads_per_bin = @ndrange()[Int32(3)]
-    batch_size = div(size(values, one(Int32)), threads_per_bin)
     batch_start = batch * batch_size + one(Int32)
     batch_end = (batch + one(Int32)) * batch_size
 
@@ -95,7 +95,7 @@ end
     end
 
     # could happen that for our batch no samples fall into the bin
-    if ndi != zero(Int32)
+    if !iszero(ndi)
         # jacobian is the same for all samples in this bin/dim, so no need to sum it up
         jac = Ng * (grid_lines[bin + one(Int32), dim] - grid_lines[bin, dim])
         @atomic bins_buffer[bin, dim] += (jac^2) / ndi * bin_sum / threads_per_bin
@@ -183,7 +183,10 @@ function binning_vegas!(
 
         @debug "Calling batched binning kernel with $(nbins) bins * $(D) dims * $(threads_per_bin) threads/bin = $(nbins * D * threads_per_bin) threads"
 
-        vegas_binning_kernel_batched!(backend)(
+        els_per_thread = Int32(256)
+        nblocks = ceil(Int32, N / els_per_thread)
+
+        vegas_binning_kernel_batched!(backend, (256, 1, 1))(
             bins_buffer,
             ndi_buffer,
             buffer.values,
@@ -191,7 +194,8 @@ function binning_vegas!(
             func,
             Ng,
             Val(D),
-            ndrange = (Int32(nbins), Int32(D), Int32(threads_per_bin))
+            Val(els_per_thread),
+            ndrange = (Int32(nbins), Int32(D), nblocks)
         )
     end
 

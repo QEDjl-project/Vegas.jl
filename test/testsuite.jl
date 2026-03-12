@@ -3,7 +3,9 @@ include("target.jl")
 include("grid.jl")
 include("sampling.jl")
 include("binning.jl")
-include("project2.jl")
+include("stencil.jl")
+include("scan.jl")
+include("refine.jl")
 
 function testsuite_run(backend, vec_type, el_type)
     @testset "buffer" begin
@@ -31,9 +33,19 @@ function testsuite_run(backend, vec_type, el_type)
         @testset "dim = 11" testsuite_binning(backend, el_type, 2^5, 11)
     end
 
-    @testset "project 2" begin
-        @testset "dim = 1" testsuite_project2(backend, el_type, 2^5, 1)
-        @testset "dim = 11" testsuite_project2(backend, el_type, 2^5, 11)
+    @testset "stencil" begin
+        @testset "dim = 1" testsuite_stencil(backend, el_type, 2^5, 1)
+        @testset "dim = 11" testsuite_stencil(backend, el_type, 2^5, 11)
+    end
+
+    @testset "scan" begin
+        @testset "dim = 1" testsuite_scan(backend, el_type, 2^5, 1)
+        @testset "dim = 11" testsuite_scan(backend, el_type, 2^5, 11)
+    end
+
+    @testset "refine" begin
+        @testset "dim = 1" testsuite_refine(backend, el_type, 2^5, 1)
+        @testset "dim = 11" testsuite_refine(backend, el_type, 2^5, 11)
     end
 
     return nothing

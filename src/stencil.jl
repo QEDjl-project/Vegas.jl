@@ -22,7 +22,6 @@
     dim_sum = @inbounds sums[begin, glob_dim]
 
     # load middle value, and conditionally l and r
-    # TODO: could probably be improved by using more threads to append the border values left and right and remove this condition
     m = local_buffer[loc_bin]
     l = loc_bin == 1 ? m : local_buffer[loc_bin - 1]
     r = loc_bin == size(bins_buffer, 1) ? m : local_buffer[loc_bin + 1]

@@ -102,3 +102,23 @@ end
 
 # can be used as a target function
 normal_distribution(u::NTuple{N, T}) where {N, T <: Number} = @inline normal_distribution(u...)
+
+# return a bins buffer on the given backend filled with some random mock data, normalized
+function mock_bins_buffer(backend, el_type, nbins, dim)
+    bins_buffer = allocate(backend, el_type, (nbins, dim))
+
+    cpu_bins_buffer = Matrix(bins_buffer)
+    for d in 1:dim, n in 1:nbins
+        cpu_bins_buffer[n, d] = 5 + rand(el_type)
+    end
+
+    # normalize along dimensions
+    dim_sums = sum(cpu_bins_buffer; dims = 1)
+    for d in 1:dim
+        cpu_bins_buffer[:, d] ./= dim_sums[d]
+    end
+
+    copyto!(bins_buffer, cpu_bins_buffer)
+
+    return bins_buffer
+end

@@ -45,8 +45,6 @@ end
 function refine_vegas!(backend, grid::VegasGrid, bins_buffer::AbstractVecOrMat, avg_d::AbstractVector)
     # write the refining code here
     # grid is both input and output, override it with the result
-    @assert bins_buffer isa AbstractVecOrMat
-
     old_nodes = grid.nodes               # (N+1, D)
     new_nodes = similar(old_nodes)
 

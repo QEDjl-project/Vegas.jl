@@ -3,8 +3,7 @@
 
 using Vegas: stencil_vegas!, scan_vegas!, refine_vegas!
 
-# NOTE: The function signature can be changed, but must be adjusted in testuite.jl as well.
-function testsuite_project2(backend, el_type, nbins, dim)
+function testsuite_refine(backend, el_type, nbins, dim)
     LOWER = ntuple(_ -> el_type(-1.0), dim)
     UPPER = ntuple(_ -> el_type(1.0), dim)
 
@@ -15,25 +14,10 @@ function testsuite_project2(backend, el_type, nbins, dim)
             one(el_type),
             el_type(1.5),
         )
+        bins_buffer = mock_bins_buffer(backend, el_type, nbins, dim)
 
-        bins_buffer = allocate(backend, el_type, (nbins, dim))
-
-        # TODO: this needs to be filled with some sensible data from project 1
-        cpu_bins_buffer = Matrix(bins_buffer)
-        for d in 1:dim, n in 1:nbins
-            cpu_bins_buffer[n, d] = 5 + rand(el_type)
-        end
-        copyto!(bins_buffer, cpu_bins_buffer)
-
-        # == STENCIL + COMPRESSION ==
-        @test isnothing(stencil_vegas!(backend, bins_buffer, ALPHA))
-
-        # == SCAN ==
+        stencil_vegas!(backend, bins_buffer, ALPHA)
         avg_d = scan_vegas!(backend, bins_buffer)
-        @test avg_d isa AbstractVector
-        @test length(avg_d) == dim
-        @test eltype(avg_d) == el_type
-
 
         # == REFINE ==
         @test isnothing(refine_vegas!(backend, grid, bins_buffer, avg_d))
