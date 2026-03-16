@@ -88,10 +88,6 @@ Batched binning kernel. The grid layout is three-dimensional, the first dimensio
             local_sum += local_targets_sq[i]
             local_ndi += one(Int32)
         end
-
-        if bin_lo <= sample && is_last_bin && sample >= bin_hi
-            @show (bin_lo, bin_hi, sample)
-        end
     end
 
     # step 4
@@ -163,11 +159,16 @@ function binning_vegas!(
     fill!(bins_buffer, zero(T))
     fill!(ndi_buffer, zero(T))
 
-    els_per_thread = 1024
+    els_per_thread = 2^10
+
     bins_block_size = min(256, nbins)
+    while bins_block_size * D > 2^10
+        bins_block_size ÷= 2
+    end
+
     nblocks = ceil(Int32, N / els_per_thread)
 
-    @debug "Calling batched binning kernel with $(els_per_thread) elements per thread"
+    @debug "Calling batched binning kernel with $(els_per_thread) elements per thread and block size $(bins_block_size)x$(D)x1"
     vegas_binning_kernel_batched!(backend, (bins_block_size, D, 1))(
         bins_buffer,
         ndi_buffer,
