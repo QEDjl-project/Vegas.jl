@@ -1,4 +1,4 @@
-@kernel function _vegas_stencil_kernel!(bins_buffer::AbstractVecOrMat{T}, @Const(sums::AbstractMatrix{T}), @Const(alpha::T)) where {T <: Number}
+@kernel function _vegas_stencil_kernel!(bins_buffer::AbstractMatrix{T}, @Const(sums::AbstractMatrix{T}), @Const(alpha::T)) where {T <: Number}
     (loc_bin, loc_dim) = @index(Local, NTuple)
     (glob_bin, glob_dim) = @index(Global, NTuple)
 
@@ -37,7 +37,7 @@ function _vegas_stencil(left::T, middle::T, right::T, sum::T, alpha::T) where {T
     return compressed
 end
 
-function stencil_vegas!(backend, bins_buffer::AbstractVecOrMat{T}, alpha::Number) where {T <: Number}
+function stencil_vegas!(backend, bins_buffer::AbstractMatrix{T}, alpha::Number) where {T <: Number}
     if typeof(get_backend(bins_buffer)) != typeof(backend)
         throw(ArgumentError("buffer does not belong to the passed backend"))
     end

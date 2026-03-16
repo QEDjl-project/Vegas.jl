@@ -95,7 +95,7 @@ function _compress_bin_avg!(d::AbstractVector, alpha::Real)
     return d
 end
 
-function _compress_bin_avg(d::AbstractVecOrMat, alpha::Real)
+function _compress_bin_avg(d::AbstractMatrix, alpha::Real)
     return _compress_bin_avg!(copy(d), alpha)
 end
 

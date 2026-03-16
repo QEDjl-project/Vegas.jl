@@ -7,7 +7,7 @@ Template parameters:
 - `T`: Basic data type used throughout, e.g. `Float32`
 - `N`: Size of the buffer, "batch_size", for example `1024`
 - `D`: Dimensionality of the samples, for example `3`
-- `V`: The type of the values (samples), backend specific vector or matrix type, size according to previously defined N and D
+- `V`: The type of the values (samples), backend specific matrix type, size according to previously defined N and D
 - `W`: The type of the weights, backend specific vector type, size according to previously defined N
 - `J`: The type of the jacobians, backend specific vector type, size according to previously defined N
 - `B`: The block size used internally for execution, can affect the performance. `N` must be a multiple of this.
@@ -27,7 +27,7 @@ struct VegasBatchBuffer{T, N, D, V, W, J, B}
     jacobians::J
 
     function VegasBatchBuffer(values::V, target_weights::W, jacs::J) where {
-            T, V <: AbstractVecOrMat{T}, W <: AbstractVector{T}, J <: AbstractVector{T},
+            T, V <: AbstractMatrix{T}, W <: AbstractVector{T}, J <: AbstractVector{T},
         }
         N = length(target_weights)
 
@@ -42,7 +42,7 @@ struct VegasBatchBuffer{T, N, D, V, W, J, B}
             )
         )
 
-        D = ndims(values) == 1 ? 1 : size(values, 2)
+        D = size(values, 2)
 
         # TODO: set this depending on backend
         B = 1024
@@ -65,8 +65,8 @@ end
 function allocate_vegas_batch(
         backend::KernelAbstractions.Backend,
         el_type::Type{T},
-        dim::Int,
-        batch_size::Int
+        dim::Integer,
+        batch_size::Integer
     ) where {T <: Number}
 
     dim > zero(dim) || throw(

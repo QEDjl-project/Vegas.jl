@@ -14,11 +14,10 @@ end
     end
 end
 
-function scan_vegas!(backend, bins_buffer::AbstractVecOrMat)
+function scan_vegas!(backend, bins_buffer::AbstractMatrix)
     T = eltype(bins_buffer)
 
-    # Handle the vector case
-    A = bins_buffer isa AbstractVector ? reshape(bins_buffer, :, 1) : bins_buffer
+    A = bins_buffer
 
     N = Int32(size(A, 1))
     D = Int32(size(A, 2))
