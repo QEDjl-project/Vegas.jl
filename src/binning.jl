@@ -88,6 +88,10 @@ Batched binning kernel. The grid layout is three-dimensional, the first dimensio
             local_sum += local_targets_sq[i]
             local_ndi += one(Int32)
         end
+
+        if bin_lo <= sample && is_last_bin && sample >= bin_hi
+            @show (bin_lo, bin_hi, sample)
+        end
     end
 
     # step 4
@@ -114,7 +118,8 @@ end
     nbins::Int32 = Ng - one(Int32)
 
     # this is why we cant have nice things
-    i::Int32 = @index(Global) - one(Int32)
+    i::Int32 = @index(Global)
+    i -= one(Int32)
     bin::Int32 = (i % nbins) + one(Int32)
     dim::Int32 = div(i, nbins) + one(Int32)
 
@@ -152,53 +157,56 @@ function binning_vegas!(
         grid::VegasGrid{T, Ng, D, G},
         func::Function,
     ) where {T <: AbstractFloat, I <: Integer, N, D, V, W, J, Ng, G}
-    # bins_buffer = Ng-1 x D
-    # buffer.values = N x D
-    # grid.jacobians = N
-    # grid.nodes = Ng x D
-
     nbins = Ng - 1
 
-    # NOTE: use unbatched implementation in case GPU does not support @atomic for the selected float
-    if string(typeof(backend)) == "MetalBackend"
-        @debug "Calling unbatched binning kernel with $(nbins) bins * $(D) dims = $(nbins * D) threads"
-        vegas_binning_kernel!(backend)(
-            bins_buffer,
-            ndi_buffer,
-            buffer.values,
-            grid.nodes,
-            func,
-            Ng,
-            Val(Int32(D)),
-            ndrange = Int32(nbins) * Int32(D)
-        )
-    else
-        # need to be zeroed because every thread just adds its calculation
-        fill!(bins_buffer, zero(T))
-        fill!(ndi_buffer, zero(T))
+    # need to be zeroed because every thread just adds its calculation
+    fill!(bins_buffer, zero(T))
+    fill!(ndi_buffer, zero(T))
 
-        # For CPU, we don't really want this batched implementation at all
-        # TODO: figure out a good value likely as big as the shared memory can take on the GPU
-        els_per_thread = 1024
-        bins_block_size = min(256, nbins)
-        nblocks = ceil(Int32, N / els_per_thread)
+    els_per_thread = 1024
+    bins_block_size = min(256, nbins)
+    nblocks = ceil(Int32, N / els_per_thread)
 
-        @debug "Calling batched binning kernel with $(els_per_thread) elements per thread"
-
-        vegas_binning_kernel_batched!(backend, (bins_block_size, D, 1))(
-            bins_buffer,
-            ndi_buffer,
-            buffer.values,
-            grid.nodes,
-            func,
-            Ng,
-            Val(D),
-            Val(els_per_thread),
-            ndrange = (Int32(nbins), Int32(D), Int32(nblocks))
-        )
-    end
+    @debug "Calling batched binning kernel with $(els_per_thread) elements per thread"
+    vegas_binning_kernel_batched!(backend, (bins_block_size, D, 1))(
+        bins_buffer,
+        ndi_buffer,
+        buffer.values,
+        grid.nodes,
+        func,
+        Ng,
+        Val(D),
+        Val(els_per_thread),
+        ndrange = (Int32(nbins), Int32(D), Int32(nblocks))
+    )
 
     synchronize(backend)
 
     return nothing
+end
+
+function binning_vegas!(
+        backend::KernelAbstractions.CPU,
+        bins_buffer::AbstractMatrix{T},
+        ndi_buffer::AbstractMatrix{I},
+        buffer::VegasBatchBuffer{T, N, D, V, W, J},
+        grid::VegasGrid{T, Ng, D, G},
+        func::Function,
+    ) where {T <: AbstractFloat, I <: Integer, N, D, V, W, J, Ng, G}
+    nbins = Ng - 1
+
+    # NOTE: use unbatched implementation because the batched version is not good for CPU
+    @debug "Calling unbatched binning kernel with $(nbins) bins * $(D) dims = $(nbins * D) threads"
+    vegas_binning_kernel!(backend)(
+        bins_buffer,
+        ndi_buffer,
+        buffer.values,
+        grid.nodes,
+        func,
+        Ng,
+        Val(D),
+        ndrange = Int32(nbins) * Int32(D)
+    )
+
+    return synchronize(backend)
 end
