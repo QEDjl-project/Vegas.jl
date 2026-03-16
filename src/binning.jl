@@ -159,9 +159,9 @@ function binning_vegas!(
     fill!(bins_buffer, zero(T))
     fill!(ndi_buffer, zero(T))
 
-    els_per_thread = 2^10
+    els_per_thread = 2^9
 
-    bins_block_size = min(256, nbins)
+    bins_block_size = min(2^8, nbins)
     while bins_block_size * D > 2^10
         bins_block_size ÷= 2
     end
