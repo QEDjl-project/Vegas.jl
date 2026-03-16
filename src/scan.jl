@@ -34,7 +34,7 @@ function scan_vegas!(backend, bins_buffer::AbstractVecOrMat)
 
     # 3) Compute avg_d = lastvals / N
     avg_d = similar(A, T, (Int(D),))
-    invN = T(1) / T(N)
+    invN = inv(T(N))
     kernel_scale = _scale_by_invN!(backend)
     kernel_scale(avg_d, lastvals, invN, D; ndrange = Int(D))
     KernelAbstractions.synchronize(backend)

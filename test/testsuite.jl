@@ -31,6 +31,8 @@ function testsuite_run(backend, vec_type, el_type)
     @testset "binning" begin
         @testset "dim = 1" testsuite_binning(backend, el_type, 2^5, 1)
         @testset "dim = 11" testsuite_binning(backend, el_type, 2^5, 11)
+        @testset "dim = 1" testsuite_binning(backend, el_type, 35, 1)
+        @testset "dim = 11" testsuite_binning(backend, el_type, 35, 11)
     end
 
     @testset "stencil" begin
