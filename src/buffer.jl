@@ -7,9 +7,10 @@ Template parameters:
 - `T`: Basic data type used throughout, e.g. `Float32`
 - `N`: Size of the buffer, "batch_size", for example `1024`
 - `D`: Dimensionality of the samples, for example `3`
-- `V`: The type of the values (samples), backend specific vector or matrix type, size according to previously defined N and D
+- `V`: The type of the values (samples), backend specific matrix type, size according to previously defined N and D
 - `W`: The type of the weights, backend specific vector type, size according to previously defined N
 - `J`: The type of the jacobians, backend specific vector type, size according to previously defined N
+- `B`: The block size used internally for execution, can affect the performance. `N` must be a multiple of this.
 
 Members:
 - `values::V`: The sampled values
@@ -20,13 +21,13 @@ Allocate this through `allocate_vegas_batch`.
 
 `eltype()`, `length()`, `size()`, and `get_backend()` are statically defined on this buffer.
 """
-struct VegasBatchBuffer{T, N, D, V, W, J}
+struct VegasBatchBuffer{T, N, D, V, W, J, B}
     values::V
     target_weights::W
     jacobians::J
 
     function VegasBatchBuffer(values::V, target_weights::W, jacs::J) where {
-            T, V <: AbstractVecOrMat{T}, W <: AbstractVector{T}, J <: AbstractVector{T},
+            T, V <: AbstractMatrix{T}, W <: AbstractVector{T}, J <: AbstractVector{T},
         }
         N = length(target_weights)
 
@@ -41,8 +42,15 @@ struct VegasBatchBuffer{T, N, D, V, W, J}
             )
         )
 
-        D = ndims(values) == 1 ? 1 : size(values, 2)
-        return new{T, N, D, V, W, J}(values, target_weights, jacs)
+        D = size(values, 2)
+
+        # TODO: set this depending on backend
+        B = 1024
+
+        if !iszero(N % B)
+            throw(InvalidInputError("the number of target samples for a VegasBatchBuffer must be a multiple of its block size (depends on backend)\n  N: $N\n  B: $B"))
+        end
+        return new{T, N, D, V, W, J, B}(values, target_weights, jacs)
     end
 end
 
@@ -57,8 +65,8 @@ end
 function allocate_vegas_batch(
         backend::KernelAbstractions.Backend,
         el_type::Type{T},
-        dim::Int,
-        batch_size::Int
+        dim::Integer,
+        batch_size::Integer
     ) where {T <: Number}
 
     dim > zero(dim) || throw(
@@ -80,6 +88,7 @@ Base.eltype(buf::VegasBatchBuffer{T}) where {T} = T
 Base.length(buf::VegasBatchBuffer{T, N}) where {T, N} = N
 Base.size(buf::VegasBatchBuffer{T, N, D}) where {T, N, D} = (N, D)
 KernelAbstractions.get_backend(buf::VegasBatchBuffer) = get_backend(buf.values)
+block_size(buf::VegasBatchBuffer{T, N, D, V, W, J, B}) where {T, N, D, V, W, J, B} = B
 
 """
     VegasOutBuffer{T, V}

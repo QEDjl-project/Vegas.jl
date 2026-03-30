@@ -34,7 +34,10 @@ include("grid.jl")
 include("testutils/TestUtils.jl")
 include("cpu/VegasCPU.jl")
 
-include("project1.jl")
-include("project2.jl")
+include("sampling.jl")
+include("binning.jl")
+include("scan.jl")
+include("stencil.jl")
+include("refine.jl")
 
 end
